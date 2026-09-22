@@ -14,7 +14,26 @@ versioned independently of the package.
 
 ### Added
 
-- Nothing yet.
+- `Ok`, `Empty` and `Err`: the tool result union, discriminated on `status`
+  and frozen. `truncated` is a flag on `Ok`, not a fourth variant.
+- `to_model()`, the model-facing renderer. An `Err` renders as an explicit
+  instruction not to claim absence, and never carries the error message or the
+  exception class into the prompt.
+- `@tool`: wraps sync and async functions so they return a `ToolResult` and
+  never raise. Preserves name, docstring, signature and type hints, so
+  LangChain and OpenAI tool-schema generation still work.
+- Strict mode, on by default: returning `None`, `[]` or `{}` without declaring
+  `empty_when` or `never_empty` raises `AmbiguousEmptyError`. There is no
+  falsiness inference, so `0`, `False` and `""` stay `Ok`.
+- Default error classification table, plus a `classify_error` override hook.
+  HTTP status is read structurally, so core needs no provider SDK.
+- `asyncio.CancelledError`, `KeyboardInterrupt` and `SystemExit` propagate
+  untouched, including out of a predicate.
+- Fault injection hook: `fault_scope` and `FaultSpec`, keyed on
+  `(tool_name, call_index)` through a context variable. An error-shaped fault
+  never calls the real dependency.
+- Retries, off by default; only `retryable` errors retry, with exponential
+  backoff and jitter.
 
 ## [0.0.1] - 2026-09-22
 
