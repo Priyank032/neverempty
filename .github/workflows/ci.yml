@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same PR cancels the first; main never cancels.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+  UV_FROZEN: "0"
+
+jobs:
+  lint:
+    name: ruff + mypy strict
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dev environment
+        run: uv sync --group dev --all-extras
+
+      - name: ruff check
+        run: uv run ruff check --output-format=github .
+
+      - name: ruff format check
+        run: uv run ruff format --check .
+
+      - name: mypy --strict
+        run: uv run mypy
+
+  test:
+    name: pytest ${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          # Windows and macOS on one version only: the library is pure Python,
+          # these catch path and event-loop differences, not per-version ones.
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Sync dev environment
+        run: uv sync --group dev --python ${{ matrix.python-version }}
+
+      - name: pytest with coverage
+        run: >
+          uv run --python ${{ matrix.python-version }}
+          pytest --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  coverage-gate:
+    # The doc's target: 90% lines on core, metrics, report, gate; 80% elsewhere.
+    # Per-module gates land with those modules (M1 onward). Until then this job
+    # asserts the whole package, which is currently the skeleton.
+    name: coverage gate
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv python install 3.12
+      - run: uv sync --group dev
+
+      - name: pytest with coverage gate
+        run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=90
+
+  schemas:
+    # The committed JSON Schemas are the cross-language contract. CI fails if
+    # the generated files differ from what is committed. No generator until M2,
+    # so this job asserts nothing has been committed out of band yet.
+    name: schemas match models
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv python install 3.12
+      - run: uv sync --group dev
+
+      - name: Regenerate and diff
+        run: |
+          if [ -f scripts/gen_schemas.py ]; then
+            uv run python scripts/gen_schemas.py --out schemas
+            git diff --exit-code -- schemas
+          else
+            echo "No schema generator yet (lands in M2); skipping."
+          fi
+
+  build:
+    name: build wheel and sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv python install 3.12
+
+      - name: Build
+        run: uv build
+
+      - name: Check metadata
+        run: uvx twine check dist/*
+
+      - name: Install the wheel into a clean venv and import it
+        # Proves the wheel ships py.typed and needs only its core dependency.
+        run: |
+          uv venv /tmp/wheelcheck
+          VIRTUAL_ENV=/tmp/wheelcheck uv pip install dist/*.whl
+          /tmp/wheelcheck/bin/python -c "import toolproof, pathlib; \
+            print(toolproof.__version__); \
+            assert (pathlib.Path(toolproof.__file__).parent / 'py.typed').is_file()"
+          /tmp/wheelcheck/bin/toolproof --version
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  ci-ok:
+    # Single required status check, so branch protection needs one entry and
+    # a skipped matrix leg can never be read as a pass.
+    name: CI ok
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [lint, test, coverage-gate, schemas, build]
+    steps:
+      - name: Assert every needed job succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          needs = json.loads(os.environ["RESULTS"])
+          bad = {j: v["result"] for j, v in needs.items() if v["result"] != "success"}
+          for job, result in sorted(bad.items()):
+              print(f"{job}: {result}", file=sys.stderr)
+          sys.exit(1 if bad else 0)
+          PY

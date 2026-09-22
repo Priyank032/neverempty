@@ -1,0 +1,160 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        required: true
+        default: testpypi
+        type: choice
+        options: [testpypi, pypi]
+
+# Least privilege at the top; the publish job raises id-token for OIDC only.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build and verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv python install 3.12
+
+      - name: Read version from the built metadata
+        id: version
+        run: |
+          uv build
+          version=$(uv run --with tomli --no-project python -c \
+            "import tomli,pathlib; \
+             print(tomli.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building version $version"
+
+      - name: Tag must match the package version
+        # A tag that disagrees with pyproject would publish the wrong version
+        # under the right name, which is unfixable on PyPI.
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="${{ steps.version.outputs.version }}"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match project version $pkg" >&2
+            exit 1
+          fi
+
+      - name: CHANGELOG must have an entry for this version
+        run: |
+          pkg="${{ steps.version.outputs.version }}"
+          grep -q "^## \[$pkg\]" CHANGELOG.md || {
+            echo "CHANGELOG.md has no '## [$pkg]' section" >&2
+            exit 1
+          }
+
+      - name: Check metadata
+        run: uvx twine check --strict dist/*
+
+      - name: Smoke test the wheel in a clean venv
+        run: |
+          uv venv /tmp/rc
+          VIRTUAL_ENV=/tmp/rc uv pip install dist/*.whl
+          /tmp/rc/bin/python -c "import toolproof; print(toolproof.__version__)"
+          /tmp/rc/bin/toolproof --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-testpypi:
+    name: publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/toolproof
+    permissions:
+      id-token: write # OIDC only; no API token is stored anywhere
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: >
+      startsWith(github.ref, 'refs/tags/v')
+      || (github.event_name == 'workflow_dispatch' && inputs.target == 'pypi')
+    environment:
+      # Add a manual reviewer on this environment in repo settings so a tag
+      # push cannot publish without a human approving it.
+      name: pypi
+      url: https://pypi.org/p/toolproof
+    permissions:
+      id-token: write # trusted publishing: no PYPI_API_TOKEN secret exists
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: GitHub release from CHANGELOG
+    needs: [build, publish-pypi]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Extract this version's section from CHANGELOG.md
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          python3 - <<'PY' > release-notes.md
+          import os, pathlib, re
+          version = os.environ["VERSION"]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = rf"^## \[{re.escape(version)}\].*?$(.*?)(?=^## \[|\Z)"
+          match = re.search(pattern, text, re.S | re.M)
+          if match is None:
+              raise SystemExit(f"No CHANGELOG section for {version}")
+          print(match.group(1).strip())
+          PY
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            dist/*
