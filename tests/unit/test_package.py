@@ -31,13 +31,15 @@ def test_ships_py_typed_marker() -> None:
 def test_public_surface_is_exactly_dunder_all() -> None:
     """Everything not named in ``__all__`` is private (doc: API stability).
 
-    Submodules are excluded: importing ``toolproof.cli`` binds ``cli`` on the
-    parent package as a fact of the import system, not as exported API.
+    Submodules bound by the import system (``toolproof.cli``) are excluded,
+    but a module listed in ``__all__`` (``redact``) is deliberate public API
+    and must stay in the comparison.
     """
+    exported = set(toolproof.__all__)
     public = {
         name
         for name, value in vars(toolproof).items()
-        if not name.startswith("_") and not isinstance(value, ModuleType)
+        if not name.startswith("_") and (name in exported or not isinstance(value, ModuleType))
     }
     assert public == set(toolproof.__all__) - {"__version__"}
 

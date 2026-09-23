@@ -34,6 +34,28 @@ versioned independently of the package.
   never calls the real dependency.
 - Retries, off by default; only `retryable` errors retry, with exponential
   backoff and jitter.
+- `Trace`, `Span`, `Usage`, `Cost`, `Env` and `FinalOutput`: the Trace v1
+  models. Unknown keys are preserved on read, so another language can add
+  fields; a `schema_version` above this reader's is rejected outright.
+- `Tracer`: contextvars-based capture, so a `@tool` call or an instrumented LLM
+  call inside `tracer.run()` attaches to the right trace and parent span under
+  asyncio concurrency, with no plumbing. Works as `with` and `async with`.
+- `SpanHandle.record_usage()` writes OpenTelemetry GenAI attribute names and
+  keeps the resolved model separate from the requested one, so model drift is
+  detectable. Token counts come from provider usage fields only.
+- `MemorySink`, `JsonlSink`, `MultiSink`, `NullSink`. A sink failure never
+  raises into the agent; it is counted on `tracer.dropped_traces` and logged at
+  ERROR, because silent data loss is the bug class this library exists to
+  prevent.
+- `redact.keys()` and friends, applied before anything reaches a sink. A
+  matched value becomes `[REDACTED:<hash>]`, so equal values stay comparable
+  without either being written.
+- `Pricing`: versioned table with an `as_of` date and source URL per model. The
+  default table is **empty**, so every cost is `null` with a reason until you
+  supply prices. No price ships that cannot be cited.
+- `schemas/trace.v1.json`, generated from the models and committed. Output is
+  normalised so it is byte-identical across pydantic 2.9 and 2.13; CI diffs it.
+- `scripts/gen_schemas.py` to regenerate the committed schemas.
 
 ## [0.0.1] - 2026-09-22
 

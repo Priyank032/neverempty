@@ -1,0 +1,475 @@
+{
+  "$defs": {
+    "Cost": {
+      "description": "Cost in USD, or an explicit null with the reason it is unknown.\n\nAn unknown cost is never ``0``. A zero would be indistinguishable from a\nfree call, and a report summing zeros would understate a run's real cost\nwhile looking perfectly healthy.",
+      "properties": {
+        "pricing_version": {
+          "title": "Pricing Version",
+          "type": "string"
+        },
+        "unknown_models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unknown Models",
+          "type": "array"
+        },
+        "unknown_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unknown Reason"
+        },
+        "usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Usd"
+        }
+      },
+      "required": [
+        "pricing_version"
+      ],
+      "title": "Cost",
+      "type": "object"
+    },
+    "Env": {
+      "description": "The reproducibility block.\n\nA report without the target's git sha, prompt hashes and the resolved model\nid is rejected by ``compare`` and by the README renderer. That check is\nonly possible because these fields travel with the trace.",
+      "properties": {
+        "concurrency": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Concurrency",
+          "type": "integer"
+        },
+        "fault_profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fault Profile"
+        },
+        "mode": {
+          "default": "live",
+          "enum": [
+            "live",
+            "replay"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "pricing_version": {
+          "title": "Pricing Version",
+          "type": "string"
+        },
+        "prompt_hashes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Prompt Hashes",
+          "type": "object"
+        },
+        "python_version": {
+          "title": "Python Version",
+          "type": "string"
+        },
+        "rate_limit_retries": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Rate Limit Retries",
+          "type": "integer"
+        },
+        "resolved_models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Resolved Models",
+          "type": "array"
+        },
+        "runtime": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime"
+        },
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed"
+        },
+        "target_dirty": {
+          "default": false,
+          "title": "Target Dirty",
+          "type": "boolean"
+        },
+        "target_git_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Git Sha"
+        },
+        "toolproof_version": {
+          "title": "Toolproof Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "toolproof_version",
+        "pricing_version",
+        "python_version"
+      ],
+      "title": "Env",
+      "type": "object"
+    },
+    "FinalOutput": {
+      "description": "What the agent produced. Every field is nullable and means it.",
+      "properties": {
+        "answer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Answer"
+        },
+        "route": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Route"
+        },
+        "structured": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Structured"
+        }
+      },
+      "title": "FinalOutput",
+      "type": "object"
+    },
+    "Span": {
+      "description": "One unit of work. Attribute names are fixed; see the doc's tables.",
+      "properties": {
+        "attributes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "end_ns": {
+          "minimum": 0,
+          "title": "End Ns",
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "llm",
+            "tool",
+            "node",
+            "judge",
+            "custom"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "span_id": {
+          "title": "Span Id",
+          "type": "string"
+        },
+        "start_ns": {
+          "minimum": 0,
+          "title": "Start Ns",
+          "type": "integer"
+        },
+        "status": {
+          "default": "ok",
+          "enum": [
+            "ok",
+            "empty",
+            "error"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "span_id",
+        "kind",
+        "name",
+        "start_ns",
+        "end_ns"
+      ],
+      "title": "Span",
+      "type": "object"
+    },
+    "TraceError": {
+      "description": "How a run failed, with the message capped and the cap made visible.",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "message"
+      ],
+      "title": "TraceError",
+      "type": "object"
+    },
+    "Usage": {
+      "description": "Token counts, from provider usage fields only.\n\nNever a local tokenizer estimate: an estimate that looks like a measurement\nis the same class of bug as an error that looks like an empty result.",
+      "properties": {
+        "cached_input_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cached Input Tokens"
+        },
+        "input_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Tokens"
+        },
+        "output_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Tokens"
+        }
+      },
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/priyank-agrawal/toolproof/blob/main/schemas/trace.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One agent run, for one case and one repeat. Unknown keys are preserved on read: other languages and later versions write fields this reader does not know. A schema_version above the reader's is rejected.",
+  "properties": {
+    "case_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Id"
+    },
+    "cost": {
+      "$ref": "#/$defs/Cost"
+    },
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "env": {
+      "$ref": "#/$defs/Env"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TraceError"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "final_output": {
+      "$ref": "#/$defs/FinalOutput"
+    },
+    "repeat": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Repeat",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "spans": {
+      "items": {
+        "$ref": "#/$defs/Span"
+      },
+      "title": "Spans",
+      "type": "array"
+    },
+    "started_at": {
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "default": "ok",
+      "enum": [
+        "ok",
+        "target_error",
+        "timeout",
+        "budget_abort"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "suite": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Suite"
+    },
+    "tags": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "object"
+    },
+    "trace_id": {
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "usage": {
+      "$ref": "#/$defs/Usage"
+    }
+  },
+  "required": [
+    "cost",
+    "duration_ms",
+    "env",
+    "final_output",
+    "repeat",
+    "schema_version",
+    "spans",
+    "started_at",
+    "status",
+    "trace_id",
+    "usage"
+  ],
+  "title": "toolproof Trace v1",
+  "type": "object"
+}

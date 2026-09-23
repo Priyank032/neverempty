@@ -59,6 +59,9 @@ dev = [
   "hypothesis>=6.100",
   "mypy>=1.11",
   "ruff>=0.6",
+  # Validates real traces against the committed contract, the way a
+  # non-Python exporter would.
+  "jsonschema>=4.22",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -97,7 +100,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "PT011"]
+# Tests may shell out, assert loosely, and block on file I/O inside an
+# async test: the event loop there has nothing else to do.
+"tests/**" = ["S", "PT011", "ASYNC230", "ASYNC240"]
+# The generator imports after a sys.path insert, by design.
+"scripts/**" = ["E402"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["toolproof"]

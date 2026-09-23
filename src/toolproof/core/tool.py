@@ -18,6 +18,7 @@ from typing import Any, Generic, Protocol, TypeVar, cast
 from toolproof.core.classify import ClassifyError, classify, is_uncatchable
 from toolproof.core.faults import FaultSpec, error_fault_details, next_fault
 from toolproof.core.results import Empty, Err, Ok, ToolResult
+from toolproof.core.tracing import open_tool_span, redacted_args
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
@@ -281,10 +282,19 @@ def _build_async_wrapper(
         if fault is not None:
             injected = spec.apply_fault(fault)
             if injected is not None:
+                opened = open_tool_span(spec.name)
+                if opened is not None:
+                    handle, finish = opened
+                    handle.set("tool.args", redacted_args(func, args, kwargs))
+                    finish(injected, 0)
                 return injected
 
         last: Err | None = None
         for attempt in range(spec.retries + 1):
+            opened = open_tool_span(spec.name)
+            handle, finish = opened if opened is not None else (None, None)
+            if handle is not None:
+                handle.set("tool.args", redacted_args(func, args, kwargs))
             try:
                 if spec.timeout_s is None:
                     value = await func(*args, **kwargs)
@@ -292,15 +302,29 @@ def _build_async_wrapper(
                     value = await asyncio.wait_for(func(*args, **kwargs), spec.timeout_s)
             except BaseException as exc:
                 if is_uncatchable(exc):
+                    if finish is not None:
+                        finish(Err(kind="exception", message="cancelled", retryable=False), attempt)
                     raise
                 last = spec.classify(exc)
+                if finish is not None:
+                    finish(last, attempt)
                 if not last.retryable or attempt == spec.retries:
                     return last
                 await asyncio.sleep(spec.backoff_for(attempt))
                 continue
 
-            result = spec.interpret(value)
-            return _flag_fault(result, fault)
+            try:
+                result = _flag_fault(spec.interpret(value), fault)
+            except BaseException:
+                if finish is not None:
+                    finish(
+                        Err(kind="validation", message="ambiguous empty", retryable=False),
+                        attempt,
+                    )
+                raise
+            if finish is not None:
+                finish(result, attempt)
+            return result
 
         return cast(Err, last)  # pragma: no cover - loop always returns
 
@@ -316,17 +340,30 @@ def _build_sync_wrapper(
         if fault is not None:
             injected = spec.apply_fault(fault)
             if injected is not None:
+                opened = open_tool_span(spec.name)
+                if opened is not None:
+                    handle, finish = opened
+                    handle.set("tool.args", redacted_args(func, args, kwargs))
+                    finish(injected, 0)
                 return injected
 
         last: Err | None = None
         for attempt in range(spec.retries + 1):
             started = time.monotonic()
+            opened = open_tool_span(spec.name)
+            handle, finish = opened if opened is not None else (None, None)
+            if handle is not None:
+                handle.set("tool.args", redacted_args(func, args, kwargs))
             try:
                 value = func(*args, **kwargs)
             except BaseException as exc:
                 if is_uncatchable(exc):
+                    if finish is not None:
+                        finish(Err(kind="exception", message="cancelled", retryable=False), attempt)
                     raise
                 last = spec.classify(exc)
+                if finish is not None:
+                    finish(last, attempt)
                 if not last.retryable or attempt == spec.retries:
                     return last
                 time.sleep(spec.backoff_for(attempt))
@@ -335,7 +372,7 @@ def _build_sync_wrapper(
             # Advisory only: the call already finished, but it overran its
             # deadline, and a caller that set one is entitled to know.
             if spec.timeout_s is not None and time.monotonic() - started > spec.timeout_s:
-                return Err(
+                overran = Err(
                     kind="timeout",
                     message=(
                         f"Tool {spec.name!r} exceeded its advisory timeout of "
@@ -345,9 +382,22 @@ def _build_sync_wrapper(
                     retryable=True,
                     cause="TimeoutError",
                 )
+                if finish is not None:
+                    finish(overran, attempt)
+                return overran
 
-            result = spec.interpret(value)
-            return _flag_fault(result, fault)
+            try:
+                result = _flag_fault(spec.interpret(value), fault)
+            except BaseException:
+                if finish is not None:
+                    finish(
+                        Err(kind="validation", message="ambiguous empty", retryable=False),
+                        attempt,
+                    )
+                raise
+            if finish is not None:
+                finish(result, attempt)
+            return result
 
         return cast(Err, last)  # pragma: no cover - loop always returns
 
