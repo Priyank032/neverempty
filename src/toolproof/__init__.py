@@ -10,10 +10,13 @@ Anything reachable but unnamed here is private and may change in any release.
 
 from toolproof.core.faults import FaultSpec, fault_scope
 from toolproof.core.results import AnyToolResult, Empty, Err, ErrorKind, Ok, ToolResult
+from toolproof.core.stubs import stub_scope
 from toolproof.core.tool import AmbiguousEmptyError, tool
 from toolproof.core.trace import Cost, Env, FinalOutput, Span, Trace, Usage
 from toolproof.dataset.case import Case, Expect, Provenance
 from toolproof.dataset.loader import Dataset, DatasetError
+from toolproof.report.report import CaseOutcome, Metric, Report, Score
+from toolproof.runner.runner import PreflightError, Runner, Scorer, ScorerError
 from toolproof.tracer import redact
 from toolproof.tracer.pricing import ModelPrice, Pricing
 from toolproof.tracer.sinks import JsonlSink, MemorySink, MultiSink, NullSink, Sink
@@ -23,6 +26,7 @@ __all__ = [
     "AmbiguousEmptyError",
     "AnyToolResult",
     "Case",
+    "CaseOutcome",
     "Cost",
     "Dataset",
     "DatasetError",
@@ -35,12 +39,19 @@ __all__ = [
     "FinalOutput",
     "JsonlSink",
     "MemorySink",
+    "Metric",
     "ModelPrice",
     "MultiSink",
     "NullSink",
     "Ok",
+    "PreflightError",
     "Pricing",
     "Provenance",
+    "Report",
+    "Runner",
+    "Score",
+    "Scorer",
+    "ScorerError",
     "Sink",
     "Span",
     "SpanHandle",
@@ -52,6 +63,7 @@ __all__ = [
     "__version__",
     "fault_scope",
     "redact",
+    "stub_scope",
     "tool",
 ]
 

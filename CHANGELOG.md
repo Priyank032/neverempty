@@ -107,6 +107,34 @@ versioned independently of the package.
   propagates.
 - `examples/fixture_agent`: a LangGraph orchestrator with seven branches and a
   fake LLM, used by the integration tests. No network, no provider SDK.
+- `Runner`: async execution with repeats, a concurrency semaphore, per-case
+  timeouts, a cost budget, preflight checks and resume. Every row of the
+  runner-semantics table has a test named after it.
+- `Report`, `CaseOutcome`, `Score` and `Metric`: the report structure. A metric
+  with `applicable=0` cannot carry a value, so "not measured" can never render
+  as `0`.
+- Unscored is never a smaller sample: a timeout, a raising target, or a case
+  where every scorer raised leaves the run `incomplete`.
+- A scorer that raises costs only itself; other scorers still apply. A scorer
+  returning `None` is not-applicable, never a failure.
+- An unknown cost is never counted as zero against the budget, so a run with no
+  pricing table does not get a silently infinite budget.
+- A budget abort cancels pending work, keeps completed cases, and writes a valid
+  `aborted_budget` report. An interrupt writes `<path>.partial.json` and never
+  the final path, then re-raises.
+- Results are sorted by `(case_id, repeat)`, so two runs of one suite produce
+  diffable JSON regardless of concurrency.
+- `resume()` re-runs only missing or unscored cases, merges without duplicating,
+  and records `resumed_from`. A resumed report is `complete` only when every
+  case has a scored outcome.
+- `stub_scope()` and the side-effect registry: `@tool(side_effect=True)`
+  registers at decoration time, and the runner refuses to start unless every
+  such tool has a stub bound. A stubbed call is traced identically to a real
+  one, with `tool.stubbed` recorded so a report cannot mistake one for the other.
+- `ResponseCache`: record/replay keyed on SHA-256 over the documented fields.
+  Editing a prompt changes the key by design, so a replay test cannot mask a
+  prompt edit. A replay miss is a hard error naming the key; replay never falls
+  back to a provider.
 
 ## [0.0.1] - 2026-09-22
 

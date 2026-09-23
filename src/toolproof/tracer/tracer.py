@@ -256,6 +256,18 @@ class TraceRun:
     def set_tag(self, key: str, value: str) -> None:
         self._state.tags[key] = value
 
+    def set_status(self, status: TraceStatus) -> None:
+        """Override the trace status.
+
+        The runner uses this for ``timeout``, which the tracer cannot detect on
+        its own: a target that overran its deadline did not raise.
+        """
+        self._state.status = status
+
+    def set_error(self, kind: str, message: str) -> None:
+        """Record why a run failed. The message is capped; no traceback."""
+        self._state.error = TraceError(kind=kind, message=message)
+
     def set_adapter_parent(self, span_id: str | None) -> None:
         """Publish a fallback parent for work in a context the tracer never entered.
 
@@ -512,6 +524,11 @@ class _RunContext:
         self._handle = TraceRun(state)
         self._run_token: contextvars.Token[_RunState | None] | None = None
         self._parent_token: contextvars.Token[str | None] | None = None
+
+    @property
+    def trace(self) -> Trace | None:
+        """The finished trace, available once the block has exited."""
+        return self._handle.trace
 
     def _enter(self) -> TraceRun:
         self._run_token = _current_run.set(self._state)

@@ -18,6 +18,12 @@ from typing import Any, Generic, Protocol, TypeVar, cast
 from toolproof.core.classify import ClassifyError, classify, is_uncatchable
 from toolproof.core.faults import FaultSpec, error_fault_details, next_fault
 from toolproof.core.results import Empty, Err, Ok, ToolResult
+from toolproof.core.stubs import (
+    clear_side_effect_registry,
+    find_stub,
+    register_side_effect,
+    registered_side_effect_tools,
+)
 from toolproof.core.tracing import open_tool_span, redacted_args
 
 T = TypeVar("T")
@@ -268,6 +274,8 @@ def tool(
         )
         wrapper.toolproof_name = spec.name
         wrapper.toolproof_side_effect = spec.side_effect
+        if spec.side_effect:
+            register_side_effect(spec.name)
         return wrapper
 
     return decorate
@@ -278,6 +286,10 @@ def _build_async_wrapper(
 ) -> Callable[..., Awaitable[ToolResult[Any]]]:
     @functools.wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> ToolResult[Any]:
+        stub = find_stub(spec.name)
+        if stub is not None:
+            return await _run_async_stub(spec, func, stub, args, kwargs)
+
         fault = next_fault(spec.name)
         if fault is not None:
             injected = spec.apply_fault(fault)
@@ -336,6 +348,10 @@ def _build_sync_wrapper(
 ) -> Callable[..., ToolResult[Any]]:
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> ToolResult[Any]:
+        stub = find_stub(spec.name)
+        if stub is not None:
+            return _run_sync_stub(spec, func, stub, args, kwargs)
+
         fault = next_fault(spec.name)
         if fault is not None:
             injected = spec.apply_fault(fault)
@@ -404,6 +420,75 @@ def _build_sync_wrapper(
     return wrapper
 
 
+async def _run_async_stub(
+    spec: _ToolSpec,
+    func: Callable[..., Any],
+    stub: Callable[..., Any],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> ToolResult[Any]:
+    """Run a stub in place of the real body, traced the same way.
+
+    A stubbed call is still a tool call: it gets a span, its arguments are
+    recorded, and its result goes through the same interpretation. Otherwise an
+    eval run would measure a system with fewer spans than production has.
+    """
+    opened = open_tool_span(spec.name)
+    handle, finish = opened if opened is not None else (None, None)
+    if handle is not None:
+        handle.set("tool.args", redacted_args(func, args, kwargs))
+        handle.set("tool.stubbed", True)
+    try:
+        value = stub(*args, **kwargs)
+        if inspect.isawaitable(value):
+            value = await value
+    except BaseException as exc:
+        if is_uncatchable(exc):
+            if finish is not None:
+                finish(Err(kind="exception", message="cancelled", retryable=False), 0)
+            raise
+        error = spec.classify(exc)
+        if finish is not None:
+            finish(error, 0)
+        return error
+
+    result = spec.interpret(value)
+    if finish is not None:
+        finish(result, 0)
+    return result
+
+
+def _run_sync_stub(
+    spec: _ToolSpec,
+    func: Callable[..., Any],
+    stub: Callable[..., Any],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> ToolResult[Any]:
+    """Synchronous counterpart of :func:`_run_async_stub`."""
+    opened = open_tool_span(spec.name)
+    handle, finish = opened if opened is not None else (None, None)
+    if handle is not None:
+        handle.set("tool.args", redacted_args(func, args, kwargs))
+        handle.set("tool.stubbed", True)
+    try:
+        value = stub(*args, **kwargs)
+    except BaseException as exc:
+        if is_uncatchable(exc):
+            if finish is not None:
+                finish(Err(kind="exception", message="cancelled", retryable=False), 0)
+            raise
+        error = spec.classify(exc)
+        if finish is not None:
+            finish(error, 0)
+        return error
+
+    result = spec.interpret(value)
+    if finish is not None:
+        finish(result, 0)
+    return result
+
+
 def _flag_fault(result: ToolResult[Any], fault: FaultSpec | None) -> ToolResult[Any]:
     """Mark a real result that a ``truncated`` fault applied to."""
     if fault is None or fault.kind != "truncated":
@@ -413,4 +498,11 @@ def _flag_fault(result: ToolResult[Any], fault: FaultSpec | None) -> ToolResult[
     return result.model_copy(update={"fault_injected": True})
 
 
-__all__ = ["AmbiguousEmptyError", "ToolCallable", "tool"]
+__all__ = [
+    "AmbiguousEmptyError",
+    "ToolCallable",
+    "clear_side_effect_registry",
+    "register_side_effect",
+    "registered_side_effect_tools",
+    "tool",
+]
