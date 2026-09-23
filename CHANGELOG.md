@@ -82,6 +82,31 @@ versioned independently of the package.
   `--expect-split-hash` for CI, `--json` for machines, and a non-zero exit when
   a glob matches nothing, so an empty match never reads as a pass.
 - `schemas/case.v1.json`, generated and committed alongside the trace schema.
+- `route_probe()` (extra: `langgraph`): compiles a graph with `interrupt_before`
+  on every branch node, runs to the interrupt, and reports the pending branch.
+  A routing eval therefore reads the route without executing a branch, which is
+  a safety requirement rather than an optimisation.
+- The route comes from the edge the graph took, not the state field. When the
+  two disagree the edge wins and the disagreement is recorded on the span as
+  `graph.route_disagreement`, because it is a finding about the agent.
+- A renamed or missing branch fails when the probe is built, listing the
+  available nodes. An interrupt that never fires lets the branch run for real,
+  so this cannot be allowed to fail quietly. `assert_branches_exist()` exposes
+  the same check for a target's import-time guard.
+- Each probe run gets its own checkpointer thread, so concurrent cases cannot
+  resume each other's graph.
+- `tracer.langchain_handler()`: node, tool and LLM spans for any LangChain
+  runnable. Parenting comes from LangChain's own run tree, since a callback's
+  start and end can arrive in different contexts.
+- `tracer.instrument_openai()` and `tracer.instrument_bedrock()`: usage,
+  resolved model, finish reason and latency by duck typing, so neither SDK is
+  imported and core stays at one dependency. Both are idempotent.
+- No prompt or completion text is ever recorded by any adapter.
+- Every callback is guarded: a LangChain payload shape this version does not
+  recognise costs a span, never the agent's request. Cancellation still
+  propagates.
+- `examples/fixture_agent`: a LangGraph orchestrator with seven branches and a
+  fake LLM, used by the integration tests. No network, no provider SDK.
 
 ## [0.0.1] - 2026-09-22
 

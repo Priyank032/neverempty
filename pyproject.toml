@@ -29,7 +29,9 @@ classifiers = [
 dependencies = ["pydantic>=2.7,<3"]
 
 [project.optional-dependencies]
-langgraph = ["langgraph>=0.2", "langchain-core>=0.3"]
+# Upper bounds at the next major: route_probe depends on interrupt_before
+# semantics, and that is a safety guarantee, not a convenience.
+langgraph = ["langgraph>=0.2,<2", "langchain-core>=0.3,<2"]
 openai = ["openai>=1.40"]
 anthropic = ["anthropic>=0.34"]
 bedrock = ["boto3>=1.34"]
@@ -62,6 +64,9 @@ dev = [
   # Validates real traces against the committed contract, the way a
   # non-Python exporter would.
   "jsonschema>=4.22",
+  # The fixture agent and the langgraph integration tests.
+  "langgraph>=0.2,<2",
+  "langchain-core>=0.3,<2",
 ]
 
 [tool.hatch.build.targets.wheel]

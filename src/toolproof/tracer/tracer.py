@@ -170,6 +170,12 @@ class _RunState:
         self.status: TraceStatus = "ok"
         self.error: TraceError | None = None
 
+        # Fallback parent for work that runs in a context the tracer never
+        # entered. LangGraph executes each node in a fresh context, so a @tool
+        # called inside a node cannot see the node's span through a ContextVar.
+        # The adapter publishes the innermost open span here instead.
+        self.adapter_parent: str | None = None
+
         self._input_tokens: int | None = None
         self._output_tokens: int | None = None
         self._cached_tokens: int | None = None
@@ -249,6 +255,13 @@ class TraceRun:
 
     def set_tag(self, key: str, value: str) -> None:
         self._state.tags[key] = value
+
+    def set_adapter_parent(self, span_id: str | None) -> None:
+        """Publish a fallback parent for work in a context the tracer never entered.
+
+        Used by framework adapters; agent code should not need this.
+        """
+        self._state.adapter_parent = span_id
 
 
 class Tracer:
@@ -364,6 +377,43 @@ class Tracer:
                     attributes=self._clean_attributes(handle.attributes),
                 )
             )
+
+    def langchain_handler(self) -> Any:
+        """A ``BaseCallbackHandler`` emitting node, tool and LLM spans.
+
+        Needs the langgraph extra. Works for any LangChain runnable, not only
+        LangGraph.
+        """
+        from toolproof.integrations.langchain import build_handler
+
+        return build_handler(self)
+
+    def instrument_openai(self, client: Any) -> Any:
+        """Capture usage, resolved model, latency and finish reason.
+
+        Patches the client instance by duck typing, so no provider SDK is
+        imported. Never records prompt or completion text.
+        """
+        from toolproof.integrations.providers import instrument_openai
+
+        return instrument_openai(self, client)
+
+    def instrument_bedrock(self, client: Any) -> Any:
+        """Capture usage from ``converse`` responses."""
+        from toolproof.integrations.providers import instrument_bedrock
+
+        return instrument_bedrock(self, client)
+
+    def open_span(
+        self, kind: SpanKind, *, name: str, parent_id: str | None = None
+    ) -> tuple[Any, Any] | None:
+        """Open a span without a ``with`` block, for callback-driven adapters.
+
+        Returns ``(handle, finish)``, or ``None`` when nothing is recording.
+        ``finish(error)`` closes it. Callbacks cannot use a context manager,
+        because start and end arrive as separate events.
+        """
+        return open_named_span(kind, name, parent_id=parent_id)
 
     def _clean_attributes(self, attributes: dict[str, Any]) -> dict[str, Any]:
         """Redact, then flatten to the scalar map the schema allows."""
@@ -546,6 +596,54 @@ def current_span_context() -> tuple[_RunState | None, str | None]:
     return _current_run.get(), _current_parent.get()
 
 
+def open_named_span(
+    kind: SpanKind, name: str, *, parent_id: str | None = None
+) -> tuple[Any, Any] | None:
+    """Open a span of any kind, closed by calling the returned finisher.
+
+    Used by adapters whose start and end arrive as separate callbacks, so a
+    ``with`` block is not available. Returns ``None`` outside a sampled run.
+
+    Args:
+        parent_id: Parent span, when the adapter tracks nesting itself. Omit to
+            inherit whatever span is active in this context.
+    """
+    state = _current_run.get()
+    if state is None or not state.sampled:
+        return None
+
+    span_id = state.new_span_id()
+    handle = SpanHandle(state, span_id, kind, name, time.monotonic_ns())
+    resolved_parent = parent_id if parent_id is not None else _current_parent.get()
+    # Deliberately no ContextVar token here. A LangChain callback's start and
+    # end can arrive in different contexts, and resetting a token across
+    # contexts raises. Adapters that need nesting pass the parent explicitly.
+    closed = False
+
+    def finish(error: BaseException | None = None) -> None:
+        nonlocal closed
+        if closed:
+            return
+        closed = True
+        if error is not None:
+            handle.status = "error"
+            handle.set("error.kind", type(error).__name__)
+        state.add_span(
+            Span(
+                span_id=span_id,
+                parent_id=resolved_parent,
+                kind=kind,
+                name=name,
+                start_ns=handle.start_ns,
+                end_ns=time.monotonic_ns(),
+                status=handle.status,
+                attributes=state.tracer._clean_attributes(handle.attributes),
+            )
+        )
+
+    return handle, finish
+
+
 def open_tool_span(name: str) -> tuple[Any, Any] | None:
     """Open a span for a tool call, or ``None`` outside a sampled run.
 
@@ -558,7 +656,7 @@ def open_tool_span(name: str) -> tuple[Any, Any] | None:
 
     span_id = state.new_span_id()
     handle = SpanHandle(state, span_id, "tool", name, time.monotonic_ns())
-    parent_id = _current_parent.get()
+    parent_id = _current_parent.get() or state.adapter_parent
     token = _current_parent.set(span_id)
 
     def finish(result: Any, attempt: int = 0) -> None:
@@ -580,4 +678,11 @@ def open_tool_span(name: str) -> tuple[Any, Any] | None:
     return handle, finish
 
 
-__all__ = ["SpanHandle", "TraceRun", "Tracer", "current_span_context", "open_tool_span"]
+__all__ = [
+    "SpanHandle",
+    "TraceRun",
+    "Tracer",
+    "current_span_context",
+    "open_named_span",
+    "open_tool_span",
+]
