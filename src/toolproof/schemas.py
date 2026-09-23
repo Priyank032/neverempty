@@ -13,9 +13,10 @@ from pathlib import Path
 from typing import Any
 
 from toolproof.core.trace import SCHEMA_VERSION, Trace
+from toolproof.dataset.case import CASE_SCHEMA_VERSION, Case
 
-SCHEMA_FILES: tuple[str, ...] = ("trace.v1.json",)
-"""Filenames this module owns. ``case.v1.json`` joins the list in M4."""
+SCHEMA_FILES: tuple[str, ...] = ("trace.v1.json", "case.v1.json")
+"""Filenames this module owns, generated from the models and committed."""
 
 
 TRACE_REQUIRED: tuple[str, ...] = (
@@ -43,11 +44,11 @@ the schema is the only place that can say so.
 def _normalise(node: Any) -> Any:
     """Remove formatting that varies between pydantic versions.
 
-    pydantic 2.9 and 2.13 emit the same model differently (an open object gains
-    an explicit ``additionalProperties: true``, for one). The committed schema
-    is diffed by CI, so a patch-level dependency bump must not look like a
-    contract change. Only redundant spellings are dropped; nothing that
-    constrains a document is touched.
+    pydantic 2.9 and 2.13 emit the same model differently: an open object gains
+    an explicit ``additionalProperties: true``, and a numeric bound is spelled
+    ``0`` or ``0.0``. The committed schema is diffed by CI, so a patch-level
+    dependency bump must not look like a contract change. Only redundant
+    spellings are normalised; nothing that constrains a document is touched.
     """
     if isinstance(node, dict):
         cleaned = {key: _normalise(value) for key, value in node.items()}
@@ -56,6 +57,10 @@ def _normalise(node: Any) -> Any:
         return cleaned
     if isinstance(node, list):
         return [_normalise(item) for item in node]
+    if isinstance(node, float) and node.is_integer():
+        # pydantic emits a bound as 0 or 0.0 depending on the version. The two
+        # are the same constraint, so they must not diff.
+        return int(node)
     return node
 
 
@@ -73,9 +78,22 @@ def _trace_schema() -> dict[str, Any]:
     return schema
 
 
+def _case_schema() -> dict[str, Any]:
+    schema: dict[str, Any] = _normalise(Case.model_json_schema(mode="validation"))
+    schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    schema["title"] = f"toolproof Case v{CASE_SCHEMA_VERSION}"
+    schema["description"] = (
+        "One dataset line. Unknown keys are rejected: a typo in eval data is a "
+        "silent killer, because a misspelled expectation is an absent one, and an "
+        "absent expectation reports not-applicable rather than failing."
+    )
+    schema["$id"] = "https://github.com/priyank-agrawal/toolproof/blob/main/schemas/case.v1.json"
+    return schema
+
+
 def generate_schemas() -> dict[str, dict[str, Any]]:
     """Every schema this repo publishes, keyed by filename."""
-    return {"trace.v1.json": _trace_schema()}
+    return {"trace.v1.json": _trace_schema(), "case.v1.json": _case_schema()}
 
 
 def render(schema: dict[str, Any]) -> str:

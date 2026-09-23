@@ -56,6 +56,32 @@ versioned independently of the package.
 - `schemas/trace.v1.json`, generated from the models and committed. Output is
   normalised so it is byte-identical across pydantic 2.9 and 2.13; CI diffs it.
 - `scripts/gen_schemas.py` to regenerate the committed schemas.
+- `Case`: the Case v1 dataset model. Unknown keys are **rejected**, the
+  opposite of the trace rule, because a misspelled expectation is an absent
+  one and an absent expectation reports not-applicable rather than failing.
+- Every `expect` key is optional but at least one is required: a case that
+  expects nothing can never fail, so it measures nothing. Absent (`None`) stays
+  distinguishable from "asked for none" (`[]`).
+- Route labels are free strings. The library never knows a target's branch
+  names, so adding one is a dataset edit, not a library change.
+- `ArgExpectation` supports `exact`, `normalized`, `set`, `numeric`, `regex`,
+  `present` and `date`. There is deliberately no `judge` mode for arguments: if
+  an argument needs semantic matching, the dataset is underspecified.
+- Regex patterns compile at load time, so a bad pattern fails on the dataset
+  rather than halfway through a run.
+- `provenance` is required on the test split, and `generated_from_rules` must
+  pin a `source_commit`: generated ground truth drifts when its source moves.
+- `Dataset.load()` reports **every** bad line with its file and line number in
+  one pass, rejects duplicate ids within a suite, and refuses to produce an
+  empty dataset.
+- `Dataset.split_hash()`: content hash of the test split, order-independent.
+  Reordering or reformatting the file leaves it unchanged; editing, adding or
+  deleting a test case changes it. Dev cases are excluded, since tuning on dev
+  is allowed and must not invalidate a baseline.
+- `toolproof validate`: schema, id uniqueness and split-hash checking, with
+  `--expect-split-hash` for CI, `--json` for machines, and a non-zero exit when
+  a glob matches nothing, so an empty match never reads as a pass.
+- `schemas/case.v1.json`, generated and committed alongside the trace schema.
 
 ## [0.0.1] - 2026-09-22
 

@@ -12,6 +12,8 @@ from toolproof.core.faults import FaultSpec, fault_scope
 from toolproof.core.results import AnyToolResult, Empty, Err, ErrorKind, Ok, ToolResult
 from toolproof.core.tool import AmbiguousEmptyError, tool
 from toolproof.core.trace import Cost, Env, FinalOutput, Span, Trace, Usage
+from toolproof.dataset.case import Case, Expect, Provenance
+from toolproof.dataset.loader import Dataset, DatasetError
 from toolproof.tracer import redact
 from toolproof.tracer.pricing import ModelPrice, Pricing
 from toolproof.tracer.sinks import JsonlSink, MemorySink, MultiSink, NullSink, Sink
@@ -20,11 +22,15 @@ from toolproof.tracer.tracer import SpanHandle, Tracer, TraceRun
 __all__ = [
     "AmbiguousEmptyError",
     "AnyToolResult",
+    "Case",
     "Cost",
+    "Dataset",
+    "DatasetError",
     "Empty",
     "Env",
     "Err",
     "ErrorKind",
+    "Expect",
     "FaultSpec",
     "FinalOutput",
     "JsonlSink",
@@ -34,6 +40,7 @@ __all__ = [
     "NullSink",
     "Ok",
     "Pricing",
+    "Provenance",
     "Sink",
     "Span",
     "SpanHandle",

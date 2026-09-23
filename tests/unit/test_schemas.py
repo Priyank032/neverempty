@@ -23,6 +23,14 @@ SCHEMA_DIR = REPO_ROOT / "schemas"
 
 
 @pytest.fixture(scope="module")
+def committed_case_schema() -> dict[str, Any]:
+    path = SCHEMA_DIR / "case.v1.json"
+    assert path.is_file(), f"{path} is not committed"
+    loaded: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return loaded
+
+
+@pytest.fixture(scope="module")
 def committed_trace_schema() -> dict[str, Any]:
     path = SCHEMA_DIR / "trace.v1.json"
     assert path.is_file(), f"{path} is not committed"
@@ -114,11 +122,76 @@ class TestTraceSchemaContract:
         assert span.get("additionalProperties") is not False
 
 
-class TestCaseSchemaPlaceholder:
-    def test_the_case_schema_is_not_yet_generated(self) -> None:
-        """Case v1 lands in M4; nothing must be committed for it before then."""
-        assert "case.v1.json" not in SCHEMA_FILES
-        assert not (SCHEMA_DIR / "case.v1.json").exists()
+class TestCaseSchemaContract:
+    def test_it_is_published(self) -> None:
+        assert "case.v1.json" in SCHEMA_FILES
+        assert (SCHEMA_DIR / "case.v1.json").is_file()
+
+    def test_the_required_case_fields_are_marked_required(self, committed_case_schema: Any) -> None:
+        required = set(committed_case_schema["required"])
+        for field in ("id", "suite", "split", "input", "expect"):
+            assert field in required, field
+
+    def test_unknown_case_keys_are_forbidden_by_the_schema(
+        self, committed_case_schema: Any
+    ) -> None:
+        """The opposite of the trace rule: a typo in eval data must not parse."""
+        assert committed_case_schema.get("additionalProperties") is False
+
+    def test_the_argument_match_modes_are_published(self, committed_case_schema: Any) -> None:
+        text = json.dumps(committed_case_schema)
+        for mode in ("exact", "normalized", "set", "numeric", "regex", "present", "date"):
+            assert f'"{mode}"' in text, mode
+
+    def test_judge_is_absent_from_the_argument_match_modes(
+        self, committed_case_schema: Any
+    ) -> None:
+        arg = next(
+            value
+            for key, value in committed_case_schema["$defs"].items()
+            if "ArgExpectation" in key
+        )
+        assert "judge" not in json.dumps(arg["properties"]["match"])
+
+    def test_a_real_case_validates_against_the_committed_schema(
+        self, committed_case_schema: Any
+    ) -> None:
+        jsonschema = pytest.importorskip("jsonschema")
+
+        from toolproof import Case
+
+        case = Case.model_validate(
+            {
+                "id": "nr-route-0142",
+                "suite": "nextrole.routing",
+                "split": "test",
+                "input": {"messages": [{"role": "user", "content": "jobs in Pune"}]},
+                "expect": {"route": {"label": "job_search"}},
+                "provenance": {
+                    "labeller": "priyank",
+                    "method": "human",
+                    "labelled_at": "2026-09-23",
+                },
+            }
+        )
+        jsonschema.validate(json.loads(case.model_dump_json()), committed_case_schema)
+
+    def test_a_case_with_an_unknown_key_is_rejected_by_the_schema(
+        self, committed_case_schema: Any
+    ) -> None:
+        jsonschema = pytest.importorskip("jsonschema")
+
+        payload = {
+            "schema_version": 1,
+            "id": "nr-route-0142",
+            "suite": "nextrole.routing",
+            "split": "dev",
+            "input": {"messages": [{"role": "user", "content": "x"}]},
+            "expect": {"route": {"label": "job_search"}},
+            "expects": {},
+        }
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(payload, committed_case_schema)
 
 
 class TestGeneratedSchemaValidatesRealTraces:
