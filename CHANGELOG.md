@@ -168,6 +168,59 @@ versioned independently of the package.
   rule explicitly; an unmeasurable repeat leaves the denominator rather than
   counting as a failure.
 
+- `metrics.stats`: pure-Python Wilson intervals, exact one-sided McNemar, seeded
+  bootstrap (10k resamples) and nearest-rank percentiles. No SciPy, so the gate
+  runs offline with pydantic as the only dependency. Every function returns
+  `None` rather than a number when there is nothing to measure: an empty sample
+  has no percentile and no interval, and `0` would read as a real result.
+- The McNemar test is one-sided deliberately. The gate exists to catch the
+  candidate getting worse, so an improvement can never fail a build.
+- `metrics.aggregate`: repeats collapse to one observation per case *before*
+  aggregation. Counting three repeats as three cases would inflate every n and
+  shrink every interval, making a 70-case suite look like a 210-case one.
+- `Report.metrics`, `confusion` and `counts.unstable` are now filled by the
+  runner. The confusion matrix has the documented extra `unscored` column, so
+  its rows always sum to the case count.
+- `compare`: pairs two reports on `case_id`, reports per-metric deltas with both
+  intervals, the McNemar counts and p-value, and the cases that flipped each
+  way. Refuses to compare when either report is incomplete or the resolved
+  models differ, unless `--allow-model-change`. An unknown cost on either side
+  makes the delta unknown, never a 0% change.
+- `gate`: the five documented exit codes, ordered so that invalid input (4)
+  outranks a must-pass failure (2), which outranks inconclusive (3), which
+  outranks a statistical regression (1). A quality verdict computed from a
+  broken input is worse than no verdict, and a run too noisy to attribute a
+  delta must not report one.
+- A floor on a metric that was not measured is a warning, never a breach. The
+  library applies its own rule to itself: missing must not look like failure.
+- `render_markdown` and `render_gate`: the renderer reads only the report
+  structure, so a table it produces can only contain numbers that are in a
+  committed report. It prints "not measured" for `applicable=0`, suppresses
+  percentages below n=10 while still showing the counts, and labels anything
+  below n=50 indicative.
+- `toolproof.toml` loader: strict, so an unknown key is an error. A misspelled
+  `max_cost_usd` that loaded silently would remove the budget cap from a live
+  run. The design doc's own config file loads unchanged, and `config_hash()` is
+  over the parsed values so reformatting does not read as a change.
+- CLI: `compare`, `gate`, `render` and `baseline promote`. `gate` returns the
+  doc's exit codes unchanged rather than remapping them to the CLI's own.
+  `baseline promote` refuses an incomplete report and refuses to overwrite an
+  existing baseline without `--force`.
+- `Runner` takes `now` and `report_id`, the two fields that otherwise stop two
+  runs of identical input from being byte-identical. A golden report is
+  reproducible with the public API rather than only under a monkeypatch.
+- Golden tests: a committed report JSON and its rendered Markdown, byte-compared
+  in CI. Any change to the report shape, the statistics or the key ordering now
+  shows up as a diff a reviewer has to approve.
+
+### Fixed
+
+- `collapse()` dropped the scorer's own detail, so the confusion matrix had no
+  labels for its rows. Declared per-case fields (`expected`, `predicted`,
+  `outcome`) now survive the collapse, and only when every repeat agrees: a
+  disagreeing prediction is precisely an unstable case, and inventing one value
+  for it would hide that.
+
 ### Deferred
 
 - `toolproof.langchain.wrap(base_tool)` is deferred past 0.1.0. The `@tool`

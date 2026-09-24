@@ -136,6 +136,13 @@ enable_error_code = [
 module = ["tests.*"]
 disallow_untyped_defs = true
 
+# mypy is pinned to 3.10, where `tomllib` does not exist, and `tomli` is a
+# dev-only dependency the library never requires. The runtime picks whichever
+# is available; the type checker cannot see either.
+[[tool.mypy.overrides]]
+module = ["tomllib", "tomli"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]

@@ -9,6 +9,7 @@ Anything reachable but unnamed here is private and may change in any release.
 # modules in the package are free to use it.
 
 from toolproof import scorers
+from toolproof.config import Config, ConfigError, load_config
 from toolproof.core.faults import FaultSpec, fault_scope
 from toolproof.core.results import AnyToolResult, Empty, Err, ErrorKind, Ok, ToolResult
 from toolproof.core.stubs import stub_scope
@@ -16,6 +17,9 @@ from toolproof.core.tool import AmbiguousEmptyError, tool
 from toolproof.core.trace import Cost, Env, FinalOutput, Span, Trace, Usage
 from toolproof.dataset.case import Case, Expect, Provenance
 from toolproof.dataset.loader import Dataset, DatasetError
+from toolproof.metrics.stats import Interval, McNemarResult
+from toolproof.report.gate import CompareResult, GateConfig, GateResult, compare, gate
+from toolproof.report.render import render_gate, render_markdown
 from toolproof.report.report import CaseOutcome, Metric, Report, Score
 from toolproof.runner.runner import PreflightError, Runner, Scorer, ScorerError
 from toolproof.tracer import redact
@@ -28,6 +32,9 @@ __all__ = [
     "AnyToolResult",
     "Case",
     "CaseOutcome",
+    "CompareResult",
+    "Config",
+    "ConfigError",
     "Cost",
     "Dataset",
     "DatasetError",
@@ -38,7 +45,11 @@ __all__ = [
     "Expect",
     "FaultSpec",
     "FinalOutput",
+    "GateConfig",
+    "GateResult",
+    "Interval",
     "JsonlSink",
+    "McNemarResult",
     "MemorySink",
     "Metric",
     "ModelPrice",
@@ -62,8 +73,13 @@ __all__ = [
     "Tracer",
     "Usage",
     "__version__",
+    "compare",
     "fault_scope",
+    "gate",
+    "load_config",
     "redact",
+    "render_gate",
+    "render_markdown",
     "scorers",
     "stub_scope",
     "tool",

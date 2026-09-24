@@ -73,6 +73,43 @@ A repeat that could not be measured leaves the denominator rather than counting
 as a failure, and a metric with nothing left to measure is reported as "not
 measured" — never as `0`.
 
+## The CI gate
+
+The gate fails a build for three reasons only: a `must_pass` case failed, a
+paired test shows a significant regression against the committed baseline, or a
+hard floor was breached. Latency, cost and small accuracy wobbles are reported as
+warnings. That restraint is deliberate: a gate that fires on noise gets disabled
+within a month, which leaves you with no gate at all.
+
+| Exit | Meaning |
+| --- | --- |
+| 0 | pass |
+| 1 | significant regression (exact McNemar) or a floor breached |
+| 2 | a `must_pass` case failed |
+| 3 | inconclusive: too many cases unstable across repeats; rerun or reduce noise |
+| 4 | invalid input: incomplete report, version mismatch, missing baseline |
+
+Codes 1, 2 and 3 fail the build. Code 3 says "rerun" rather than "regression",
+because a run too noisy to attribute a delta must not be read as the agent
+getting worse. Code 4 is an infrastructure failure and is labelled as such.
+
+The paired test is one-sided: it compares outcomes per case on the same frozen
+set, so an improvement can never fail a build. At n=210, a real 5-point drop and
+noise are distinguishable; at n=100 they are not, which is why the sample size
+drives the design rather than the reverse.
+
+### What the renderer refuses to print
+
+Numbers in a README come from a committed report, because the renderer reads
+nothing else. It also refuses three things outright:
+
+- A metric with `applicable=0` prints **not measured**, never `0%`.
+- Below n=10 the percentage is suppressed and the raw counts shown instead.
+- Below n=50 the percentage is printed but labelled **indicative**.
+
+A genuinely zero rate still prints as `0.0%`, because 0% misreport is a result
+and the best possible one. It has to stay distinguishable from "we did not check".
+
 ## Installation
 
 ```bash

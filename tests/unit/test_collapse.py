@@ -189,3 +189,60 @@ class TestUnknownScorer:
             "false_alarm",
         }
         assert built_in <= set(COLLAPSE_RULES)
+
+
+class TestCarriedDetail:
+    """The collapsed score is the only thing the report sees.
+
+    A per-case field that does not survive the collapse is invisible
+    downstream, which is how the confusion matrix would end up with no labels
+    for its rows.
+    """
+
+    def test_agreeing_detail_fields_survive_the_collapse(self) -> None:
+        repeats = [
+            Score(
+                passed=True, value=1.0, detail={"expected": "job_search", "predicted": "job_search"}
+            ),
+            Score(
+                passed=True, value=1.0, detail={"expected": "job_search", "predicted": "job_search"}
+            ),
+        ]
+        result = collapsed("route", repeats)
+        assert result.detail["expected"] == "job_search"
+        assert result.detail["predicted"] == "job_search"
+
+    def test_a_disagreeing_prediction_is_not_carried(self) -> None:
+        """Repeats predicting different routes is exactly an unstable case.
+        Picking one to report would hide the instability behind a clean label."""
+        repeats = [
+            Score(
+                passed=True, value=1.0, detail={"expected": "job_search", "predicted": "job_search"}
+            ),
+            Score(
+                passed=False, value=0.0, detail={"expected": "job_search", "predicted": "clarify"}
+            ),
+        ]
+        result = collapsed("route", repeats)
+        assert result.detail["expected"] == "job_search"
+        assert "predicted" not in result.detail
+        assert result.detail["unstable"] is True
+
+    def test_a_field_missing_from_one_repeat_is_not_carried(self) -> None:
+        repeats = [
+            Score(passed=True, value=1.0, detail={"expected": "job_search"}),
+            Score(passed=True, value=1.0, detail={}),
+        ]
+        assert "expected" not in collapsed("route", repeats).detail
+
+    def test_the_failure_outcome_is_carried(self) -> None:
+        """``misreport`` versus ``ignored`` are different bugs with different
+        fixes, so the distinction has to reach the report."""
+        repeats = [Score(passed=False, value=0.0, detail={"outcome": "misreport"})]
+        assert collapsed("failure_handling", repeats).detail["outcome"] == "misreport"
+
+    def test_unrelated_detail_is_not_carried(self) -> None:
+        """Only the declared keys travel. Carrying everything would put a
+        scorer's internal breakdown into every report."""
+        repeats = [Score(passed=True, value=1.0, detail={"arguments": {"city": {}}})]
+        assert "arguments" not in collapsed("arguments", repeats).detail

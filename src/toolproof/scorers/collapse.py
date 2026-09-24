@@ -76,6 +76,7 @@ def collapse(name: str, repeats: Sequence[Score]) -> Score | None:
         "not_applicable": skipped,
         "unstable": len(set(verdicts)) > 1,
     }
+    detail.update(_carried(measured))
 
     passed: bool | None = None
     if verdicts:
@@ -99,4 +100,37 @@ def collapse(name: str, repeats: Sequence[Score]) -> Score | None:
     return Score(passed=passed, value=value, detail=detail)
 
 
-__all__ = ["COLLAPSE_RULES", "DEFAULT_RULE", "CollapseRule", "collapse", "collapse_rule"]
+CARRIED_DETAIL_KEYS = ("expected", "predicted", "outcome")
+"""Per-case detail fields that survive the collapse.
+
+The collapsed score is the only thing the report and the confusion matrix see,
+so a field that does not travel here is invisible downstream — the confusion
+matrix would have no labels to put in its rows.
+
+A field is carried only when every measured repeat agrees on it. ``expected``
+comes from the dataset and always will; ``predicted`` disagreeing across repeats
+is precisely an unstable case, and inventing one value for it would hide that.
+"""
+
+
+def _carried(measured: Sequence[Score]) -> dict[str, object]:
+    """The carried fields the repeats agree on."""
+    carried: dict[str, object] = {}
+    for key in CARRIED_DETAIL_KEYS:
+        present = [score.detail[key] for score in measured if key in score.detail]
+        if len(present) != len(measured):
+            continue
+        first = present[0]
+        if all(value == first for value in present):
+            carried[key] = first
+    return carried
+
+
+__all__ = [
+    "CARRIED_DETAIL_KEYS",
+    "COLLAPSE_RULES",
+    "DEFAULT_RULE",
+    "CollapseRule",
+    "collapse",
+    "collapse_rule",
+]

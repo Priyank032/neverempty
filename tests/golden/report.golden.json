@@ -1,0 +1,544 @@
+{
+  "complete": true,
+  "config_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "confusion": {
+    "blog_search": {
+      "blog_search": 1
+    },
+    "clarify": {
+      "clarify": 1
+    },
+    "email_draft": {
+      "email_draft": 1
+    },
+    "followup": {
+      "email_draft": 1,
+      "followup": 2
+    },
+    "general": {
+      "general": 1
+    },
+    "job_search": {
+      "clarify": 1,
+      "general": 1,
+      "job_search": 2
+    },
+    "resume_query": {
+      "resume_query": 1
+    }
+  },
+  "costs": {
+    "budget_usd": null,
+    "mean_usd": null,
+    "pricing_version": "empty-2026-09-23",
+    "total_usd": null,
+    "unknown_count": 12
+  },
+  "counts": {
+    "cases": 12,
+    "repeats": 1,
+    "scored": 12,
+    "unscored": 0,
+    "unstable": 0
+  },
+  "created_at": "2026-09-23T10:00:00.000Z",
+  "env": {
+    "concurrency": 4,
+    "fault_profile": null,
+    "mode": "live",
+    "pricing_version": "empty-2026-09-23",
+    "prompt_hashes": {},
+    "python_version": "3.12.0",
+    "rate_limit_retries": 0,
+    "resolved_models": [],
+    "runtime": null,
+    "seed": 20260921,
+    "target_dirty": false,
+    "target_git_sha": "abc1234",
+    "toolproof_version": "0.0.1-golden"
+  },
+  "judge": {
+    "error_rate": null,
+    "kappa": null,
+    "model": null,
+    "prompt_version": null
+  },
+  "latency": {
+    "concurrency": 4,
+    "p50_ms": 0,
+    "p95_ms": 0,
+    "samples_ms": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "metrics": [
+    {
+      "applicable": 0,
+      "ci_high": null,
+      "ci_low": null,
+      "method": null,
+      "n": 0,
+      "name": "arguments",
+      "note": "not measured: no case in this run declared the expectation",
+      "value": null
+    },
+    {
+      "applicable": 1,
+      "ci_high": 0.5,
+      "ci_low": 0.5,
+      "method": "bootstrap",
+      "n": 1,
+      "name": "facts",
+      "note": "collapse=median",
+      "value": 0.5
+    },
+    {
+      "applicable": 1,
+      "ci_high": 1.0,
+      "ci_low": 0.20654931437723745,
+      "method": "wilson",
+      "n": 1,
+      "name": "forbidden_tools",
+      "note": "collapse=any_hit",
+      "value": 1.0
+    },
+    {
+      "applicable": 12,
+      "ci_high": 0.9110583316059453,
+      "ci_low": 0.46769466506643426,
+      "method": "wilson",
+      "n": 12,
+      "name": "route",
+      "note": "collapse=majority",
+      "value": 0.75
+    }
+  ],
+  "outcomes": [
+    {
+      "case_id": "g-0001",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0002",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "clarify",
+            "source": "final_output.route"
+          },
+          "passed": false,
+          "value": 0.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0003",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [
+              "email_draft"
+            ],
+            "expected": "followup",
+            "lenient": true,
+            "predicted": "email_draft",
+            "source": "final_output.route"
+          },
+          "passed": false,
+          "value": 0.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0004",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "forbidden_tools": {
+          "detail": {
+            "called": [],
+            "forbidden": [
+              "send_gmail"
+            ],
+            "hits": []
+          },
+          "passed": true,
+          "value": 1.0
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "email_draft",
+            "lenient": true,
+            "predicted": "email_draft",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0005",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "facts": {
+          "detail": {
+            "found": [
+              "f1"
+            ],
+            "missing": [
+              "f2"
+            ]
+          },
+          "passed": false,
+          "value": 0.5
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "resume_query",
+            "lenient": true,
+            "predicted": "resume_query",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0006",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "blog_search",
+            "lenient": true,
+            "predicted": "blog_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0007",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "general",
+            "lenient": true,
+            "predicted": "general",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0008",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "clarify",
+            "lenient": true,
+            "predicted": "clarify",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0009",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0010",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "general",
+            "source": "final_output.route"
+          },
+          "passed": false,
+          "value": 0.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0011",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "followup",
+            "lenient": true,
+            "predicted": "followup",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "g-0012",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 0,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "forbidden_tools",
+        "facts",
+        "arguments"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "followup",
+            "lenient": true,
+            "predicted": "followup",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [],
+      "trace_id": null,
+      "trace_status": "ok"
+    }
+  ],
+  "report_id": "00000000-0000-4000-8000-000000000000",
+  "resumed_from": null,
+  "schema_version": 1,
+  "split": "dev",
+  "split_hash": null,
+  "status": "ok",
+  "suite": "golden.suite",
+  "suite_version": 1
+}

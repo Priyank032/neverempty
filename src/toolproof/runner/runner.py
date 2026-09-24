@@ -35,6 +35,11 @@ from toolproof.core.stubs import registered_side_effect_tools, stub_scope
 from toolproof.core.trace import Env, Trace, TraceError, truncate_utf8
 from toolproof.dataset.case import Case
 from toolproof.dataset.loader import Dataset
+from toolproof.metrics.aggregate import (
+    build_confusion,
+    build_metrics,
+    count_unstable,
+)
 from toolproof.report.report import (
     CaseOutcome,
     Costs,
@@ -140,6 +145,8 @@ class Runner:
         suite_version: int = 1,
         env_overrides: dict[str, Any] | None = None,
         config_hash: str | None = None,
+        now: str | None = None,
+        report_id: str | None = None,
         _force_cost: float | None = None,
     ) -> None:
         if repeats < 1:
@@ -163,6 +170,13 @@ class Runner:
         self.suite_version = suite_version
         self.env_overrides = dict(env_overrides or {})
         self.config_hash = config_hash
+
+        # Determinism seam. A report carries a wall-clock timestamp and a random
+        # id, which are exactly the two fields that stop two runs of identical
+        # input from being byte-identical. Pinning them is what makes a golden
+        # report reproducible by a user, not only by a monkeypatched test.
+        self.now = now
+        self.report_id = report_id
 
         self.tracer = tracer or Tracer(sink=MemorySink())
         self.cache = ResponseCache(cache, mode=mode) if cache else None
@@ -463,11 +477,25 @@ class Runner:
         durations = sorted(outcome.duration_ms for outcome in outcomes)
         known_costs = [o.cost_usd for o in outcomes if o.cost_usd is not None]
 
+        seed = self.seed if self.seed is not None else 0
+        scorer_names = [_scorer_name(scorer, index) for index, scorer in enumerate(self.scorers)]
+        expected_labels = {
+            case.id: case.expect.route.label
+            for case in dataset.cases
+            if case.expect.route is not None
+        }
+
+        fields: dict[str, Any] = {}
+        if self.report_id is not None:
+            fields["report_id"] = self.report_id
+
         return Report(
+            **fields,
             suite=suite,
             suite_version=self.suite_version,
             split=split,
-            created_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            created_at=self.now
+            or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
             complete=complete,
             status=status,  # type: ignore[arg-type]
             env=self._env(_fault_profile(dataset)),
@@ -477,8 +505,11 @@ class Runner:
                 repeats=self.repeats,
                 scored=len(scored_ids),
                 unscored=unscored,
+                unstable=count_unstable(outcomes),
             ),
+            metrics=build_metrics(outcomes, seed=seed, scorer_names=scorer_names),
             outcomes=outcomes,
+            confusion=build_confusion(outcomes, expected_labels=expected_labels),
             judge=JudgeInfo(),
             costs=Costs(
                 total_usd=sum(known_costs) if known_costs else None,
