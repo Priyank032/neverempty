@@ -20,6 +20,7 @@ from typing import Any
 
 from toolproof import __version__
 from toolproof.dataset.loader import Dataset, DatasetError, expand_paths
+from toolproof.evals.importer import LLM_ERROR_RATE_CEILING
 from toolproof.judge.judge import VERIFICATION_PROMPT_VERSION
 from toolproof.report.gate import GateConfig
 from toolproof.report.gate import compare as compare_reports
@@ -72,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.set_defaults(handler=_validate)
 
     _add_coverage(subcommands)
+    _add_import(subcommands)
     _add_compare(subcommands)
     _add_gate(subcommands)
     _add_render(subcommands)
@@ -193,6 +195,60 @@ def _declared_branches(config: Any) -> tuple[str, ...] | None:
     from toolproof.evals.nextrole import BRANCHES
 
     return BRANCHES
+
+
+def _add_import(subcommands: Any) -> None:
+    importer = subcommands.add_parser(
+        "import",
+        help="import traces exported by another language",
+        description=(
+            "Read Trace v1 JSONL produced by a non-Python exporter, validate "
+            "every line against the same models the Python tracer uses, and "
+            "check the export's own preconditions: that the match cache was "
+            "bypassed, and that the LLM error rate is low enough to publish "
+            "from. Refuses rather than importing data that cannot support a "
+            "number."
+        ),
+    )
+    importer.add_argument("traces", metavar="TRACES", help="traces.jsonl")
+    importer.add_argument(
+        "--cases",
+        metavar="CASES",
+        help="cases.jsonl, to pair each trace with its ground truth",
+    )
+    importer.add_argument(
+        "--error-ceiling",
+        type=float,
+        default=LLM_ERROR_RATE_CEILING,
+        metavar="RATE",
+        help=(
+            f"refuse above this share of traces carrying an LLM error "
+            f"(default {LLM_ERROR_RATE_CEILING:.2f})"
+        ),
+    )
+    importer.add_argument(
+        "--allow-cached",
+        action="store_true",
+        help=(
+            "accept an export that does not record a cache bypass. A cached "
+            "run can serve one persona an explanation written for another in "
+            "the same age and income bucket, so this is off by default"
+        ),
+    )
+    importer.set_defaults(handler=_import)
+
+
+def _import(args: argparse.Namespace) -> int:
+    from toolproof.evals.importer import import_export
+
+    report = import_export(
+        args.traces,
+        cases_path=args.cases,
+        error_ceiling=args.error_ceiling,
+        require_cache_bypass=not args.allow_cached,
+    )
+    print(report.render())
+    return EXIT_OK if report.ok else EXIT_INVALID
 
 
 def _add_compare(subcommands: Any) -> None:
