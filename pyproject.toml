@@ -36,7 +36,13 @@ openai = ["openai>=1.40"]
 anthropic = ["anthropic>=0.34"]
 bedrock = ["boto3>=1.34"]
 otel = ["opentelemetry-sdk>=1.26", "opentelemetry-exporter-otlp-proto-http>=1.26"]
+# No package pinned: access is waitlisted and the SDK's shape is unverified, so
+# the backend takes a client the caller supplies rather than importing one. The
+# extra exists to name the capability; it gains a dependency when the comparison
+# in the design doc has actually been run and the numbers held up.
+jev = []
 all = [
+  "toolproof[jev]",
   "toolproof[langgraph]",
   "toolproof[openai]",
   "toolproof[anthropic]",
