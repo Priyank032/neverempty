@@ -39,6 +39,11 @@ jobs:
       - name: ruff check
         run: uv run ruff check --output-format=github .
 
+      # A published number that no longer matches its report is the failure this
+      # check exists to catch. With no committed reports, the section must say so.
+      - name: README numbers match their reports
+        run: uv run toolproof readme $(ls evals/reports/*.json 2>/dev/null) --check README.md
+
       - name: ruff format check
         run: uv run ruff format --check .
 

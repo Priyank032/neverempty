@@ -148,13 +148,22 @@ Core depends on `pydantic>=2` and nothing else. Python 3.10 to 3.13.
 Integrations ship as extras: `toolproof[langgraph]`, `toolproof[openai]`,
 `toolproof[anthropic]`, `toolproof[bedrock]`, `toolproof[otel]`.
 
+<!-- toolproof:numbers:begin -->
 ## Numbers
 
-This README will carry measured results for two real agents. Every number will
-show its sample size, confidence interval, resolved model snapshot, date and
-git sha, and will link to the committed report JSON it was rendered from.
+No measured numbers yet. This section is generated from committed reports, so it stays empty until a run produces one.
+<!-- toolproof:numbers:end -->
 
-None of those numbers exist yet, so none are printed here.
+Every number will show its sample size, confidence interval, resolved model
+snapshot, date and git sha, and will link to the committed report it was
+rendered from. Judge-derived numbers are cut when kappa is below 0.6.
+
+The region above is generated; regenerate and check it with:
+
+```bash
+toolproof readme evals/reports/*.json
+toolproof readme evals/reports/*.json --check README.md   # CI
+```
 
 ## Contributing
 

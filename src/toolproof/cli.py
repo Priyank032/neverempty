@@ -74,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     _add_coverage(subcommands)
     _add_import(subcommands)
+    _add_readme(subcommands)
     _add_compare(subcommands)
     _add_gate(subcommands)
     _add_render(subcommands)
@@ -249,6 +250,93 @@ def _import(args: argparse.Namespace) -> int:
     )
     print(report.render())
     return EXIT_OK if report.ok else EXIT_INVALID
+
+
+def _add_readme(subcommands: Any) -> None:
+    readme = subcommands.add_parser(
+        "readme",
+        help="render the README's Numbers section from committed reports",
+        description=(
+            "Build the published-numbers table from report files. Every row "
+            "links back to the report it came from, carries its sample size and "
+            "interval, and judge-derived numbers are cut when kappa is below the "
+            "publishing threshold. A number with no report behind it cannot be "
+            "produced, because there is nothing to produce it from."
+        ),
+    )
+    readme.add_argument("reports", nargs="*", metavar="REPORT", help="committed report JSON files")
+    readme.add_argument(
+        "--check",
+        metavar="README",
+        help=(
+            "compare against the Numbers section of this file and exit non-zero "
+            "when they differ, so a stale published number fails CI"
+        ),
+    )
+    readme.set_defaults(handler=_readme)
+
+
+def _readme(args: argparse.Namespace) -> int:
+    from toolproof.report.readme import load_reports, render_readme_numbers
+
+    try:
+        loaded = load_reports(args.reports)
+    except OSError as exc:
+        print(f"cannot read a report: {exc}", file=sys.stderr)
+        return EXIT_INVALID
+
+    rendered = render_readme_numbers(loaded)
+
+    if not args.check:
+        print(rendered)
+        return EXIT_OK
+
+    target = Path(args.check)
+    try:
+        current = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"cannot read {target}: {exc}", file=sys.stderr)
+        return EXIT_INVALID
+
+    existing = _numbers_section(current)
+    if existing is None:
+        print(
+            f"{target} has no generated region to check. Wrap the numbers in "
+            f"{BEGIN_MARKER} and {END_MARKER}.",
+            file=sys.stderr,
+        )
+        return EXIT_INVALID
+
+    if existing.strip() == rendered.strip():
+        print(f"{target}: Numbers section is up to date")
+        return EXIT_OK
+
+    print(
+        f"{target}: the Numbers section does not match the committed reports. "
+        f"Re-render it with 'toolproof readme <reports> > section.md'. A published "
+        f"number that no longer matches its report is the failure this check "
+        f"exists to catch.",
+        file=sys.stderr,
+    )
+    return EXIT_INVALID
+
+
+BEGIN_MARKER = "<!-- toolproof:numbers:begin -->"
+END_MARKER = "<!-- toolproof:numbers:end -->"
+
+
+def _numbers_section(text: str) -> str | None:
+    """The generated region, between the two markers.
+
+    Marker-delimited rather than heading-delimited so hand-written prose can sit
+    in the same section without the check reading it as drift. Only what is
+    between the markers is generated, and only that is compared.
+    """
+    start = text.find(BEGIN_MARKER)
+    end = text.find(END_MARKER)
+    if start == -1 or end == -1 or end < start:
+        return None
+    return text[start + len(BEGIN_MARKER) : end].strip()
 
 
 def _add_compare(subcommands: Any) -> None:
