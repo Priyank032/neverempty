@@ -32,6 +32,15 @@ from toolproof.report.report import Metric, Report
 FLIP_LIST_CAP = 20
 """The doc's cap on printed flip lists. The *counts* are never capped."""
 
+JUDGE_DERIVED_METRICS = frozenset({"facts", "forbidden_claims"})
+"""Metrics a judge can decide.
+
+On a ``degraded`` run these are excluded from the gate, per the doc. The run
+still gates on its deterministic metrics: a flaky judge is not a reason to stop
+checking routing, and treating it as one would make one bad provider call block
+a build whose real measurements were fine.
+"""
+
 MAX_SUFFIX = "_max"
 """Marks a ceiling in ``floors``.
 
@@ -329,11 +338,22 @@ def _floor_breaches(report: Report, config: GateConfig) -> tuple[list[str], list
     metrics = {m.name: m for m in _metrics_of(report, seed=config.seed)}
     breaches: list[str] = []
     warnings: list[str] = []
+    degraded = report.status == "degraded"
 
     for key, threshold in sorted(config.floors.items()):
         is_max = key.endswith(MAX_SUFFIX)
         name = key[: -len(MAX_SUFFIX)] if is_max else key
         metric = metrics.get(name)
+
+        if degraded and name in JUDGE_DERIVED_METRICS:
+            # The judge errored often enough to taint its own numbers, so this
+            # floor is not evaluated. The deterministic floors still apply.
+            warnings.append(
+                f"floor {key!r} was not evaluated: the run is degraded "
+                f"(judge error rate {report.judge.error_rate}), so judge-derived "
+                f"metrics are excluded from the gate"
+            )
+            continue
 
         if metric is None or metric.value is None:
             # Not measured cannot be a breach. Treating it as one would be this

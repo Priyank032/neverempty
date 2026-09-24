@@ -18,6 +18,7 @@ from typing import Any
 
 from toolproof import __version__
 from toolproof.dataset.loader import Dataset, DatasetError, expand_paths
+from toolproof.judge.judge import VERIFICATION_PROMPT_VERSION
 from toolproof.report.gate import GateConfig
 from toolproof.report.gate import compare as compare_reports
 from toolproof.report.gate import gate as run_gate
@@ -72,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_gate(subcommands)
     _add_render(subcommands)
     _add_baseline(subcommands)
+    _add_judge(subcommands)
 
     return parser
 
@@ -261,6 +263,159 @@ def _fail(args: argparse.Namespace, message: str, *, hint: str = "") -> None:
     print(f"FAIL {message}")
     if hint:
         print(f"     {hint}")
+
+
+def _add_judge(subcommands: Any) -> None:
+    judge = subcommands.add_parser(
+        "judge",
+        help="judge calibration against human labels",
+        description="Measure the judge's agreement with human labels.",
+    )
+    actions = judge.add_subparsers(dest="judge_command", metavar="<action>")
+    calibrate = actions.add_parser(
+        "calibrate",
+        help="report Cohen's kappa, the 3x3 matrix, and contradicted precision",
+        description=(
+            "Compare judge labels against human labels and report Cohen's kappa, "
+            "the 3x3 confusion matrix, and precision and recall for "
+            "'contradicted' specifically, which is the label that drives the "
+            "headline number.\n"
+            "\n"
+            "Kappa rather than raw agreement: on a set that is 80% supported, a "
+            "judge that always answers supported scores 80% agreement and has "
+            "learned nothing. Kappa corrects for that."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    calibrate.add_argument("labels", metavar="LABELS", help="human-labelled JSONL")
+    calibrate.add_argument(
+        "--replay",
+        required=True,
+        metavar="PATH",
+        help=(
+            "JSONL of judge labels to compare against, keyed by id. Use a "
+            "recorded judge run; live judging needs a provider binding."
+        ),
+    )
+    calibrate.add_argument(
+        "--fail-below-threshold",
+        action="store_true",
+        help=(
+            "exit non-zero when kappa is below the publish threshold; for a "
+            "release workflow, where an exploratory run wants exit 0"
+        ),
+    )
+    calibrate.add_argument("--out", metavar="PATH", help="write the result JSON here")
+    calibrate.add_argument("--json", action="store_true", dest="as_json")
+    calibrate.set_defaults(handler=_judge_calibrate)
+    judge.set_defaults(handler=_judge_help, as_json=False)
+
+
+def _judge_help(args: argparse.Namespace) -> int:
+    print("usage: toolproof judge calibrate LABELS --replay PATH [--out PATH] [--json]")
+    return EXIT_USAGE
+
+
+def _judge_calibrate(args: argparse.Namespace) -> int:
+    from toolproof.judge.calibration import (
+        KAPPA_PUBLISH_THRESHOLD,
+        calibrate,
+        load_calibration,
+    )
+
+    try:
+        cases = load_calibration(args.labels)
+        replayed = load_calibration(args.replay)
+    except ValueError as exc:
+        print(f"FAIL {exc}")
+        return EXIT_INVALID
+
+    by_id = {case.id: case.human_label for case in replayed}
+    missing = [case.id for case in cases if case.id not in by_id]
+    if missing:
+        # Pairing is by id, so a replay missing a case would silently shrink the
+        # set the kappa was computed on.
+        print(
+            f"FAIL replay is missing {len(missing)} case(s) present in the "
+            f"labels: {', '.join(missing[:10])}"
+        )
+        return EXIT_INVALID
+
+    result = calibrate(
+        cases,
+        judge_labels=[by_id[case.id] for case in cases],
+        model_id=args.replay,
+        prompt_version=VERIFICATION_PROMPT_VERSION,
+    )
+
+    if args.out:
+        target = Path(args.out)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(result.model_dump_json(indent=2) + "\n", encoding="utf-8", newline="\n")
+
+    if args.as_json:
+        print(result.model_dump_json(indent=2))
+    else:
+        print(_render_calibration(result, KAPPA_PUBLISH_THRESHOLD))
+
+    if args.fail_below_threshold and not result.publishable:
+        return EXIT_INVALID
+    return EXIT_OK
+
+
+def _render_calibration(result: Any, threshold: float) -> str:
+    labels = ("supported", "contradicted", "not_in_evidence")
+    kappa = "not measured" if result.kappa is None else f"{result.kappa:.3f}"
+    agreement = "not measured" if result.agreement is None else f"{result.agreement:.1%}"
+
+    lines = [
+        f"Judge calibration: {result.scored} scored, {result.errors} judge_error, "
+        f"{result.cases} total",
+        "",
+        f"Cohen's kappa : {kappa}",
+        f"Raw agreement : {agreement}  (inflated by the base rate; kappa corrects it)",
+        "",
+        "Confusion matrix (rows human, columns judge):",
+        "",
+        "| human \\ judge | " + " | ".join(labels) + " |",
+        "| --- | " + " | ".join("---" for _ in labels) + " |",
+    ]
+    for human in labels:
+        row = result.matrix.get(human, {})
+        lines.append(f"| {human} | " + " | ".join(str(row.get(j, 0)) for j in labels) + " |")
+
+    precision = result.contradicted_precision
+    recall = result.contradicted_recall
+    lines += [
+        "",
+        "contradicted (the label that drives the headline number):",
+        f"  precision : {'not measured' if precision is None else f'{precision:.1%}'}",
+        f"  recall    : {'not measured' if recall is None else f'{recall:.1%}'}",
+    ]
+
+    if result.by_language:
+        lines += ["", "Agreement by language:"]
+        for language, stats in sorted(result.by_language.items()):
+            lines.append(f"  {language} : {stats['agreement']:.1%}  (n={int(stats['n'])})")
+
+    if result.injections:
+        lines += [
+            "",
+            f"Injection fixtures: {result.injections_held}/{result.injections} held "
+            f"(the judge did not flip the label)",
+        ]
+
+    lines += [""]
+    if result.publishable:
+        lines.append(
+            f"Kappa is at or above {threshold}, so judge-derived numbers may be published."
+        )
+    else:
+        lines.append(
+            f"Kappa is below {threshold}: judge-derived numbers are NOT publishable. "
+            f"Report only the deterministic checks."
+        )
+    return "\n".join(lines)
 
 
 def _load_report(path: str) -> Report | str:

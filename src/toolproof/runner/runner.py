@@ -145,6 +145,7 @@ class Runner:
         suite_version: int = 1,
         env_overrides: dict[str, Any] | None = None,
         config_hash: str | None = None,
+        judge: Any = None,
         now: str | None = None,
         report_id: str | None = None,
         _force_cost: float | None = None,
@@ -175,6 +176,7 @@ class Runner:
         # id, which are exactly the two fields that stop two runs of identical
         # input from being byte-identical. Pinning them is what makes a golden
         # report reproducible by a user, not only by a monkeypatched test.
+        self.judge = judge
         self.now = now
         self.report_id = report_id
 
@@ -237,6 +239,10 @@ class Runner:
                 f"must never be able to touch the outside world, so pass "
                 f"stubs={{'name': fn}} for each."
             )
+
+        # After the side-effect check: a run that could email a real recruiter
+        # must fail on that, not on a judge misconfiguration.
+        self._preflight_judge()
 
         # Only a replay run that actually needs recorded responses is blocked.
         # A target with no provider calls (a fixture agent, a rule engine) is a
@@ -441,7 +447,10 @@ class Runner:
         outcome.scored = bool(outcome.scores)
 
     async def _invoke_scorer(self, scorer: Any, case: Case, trace: Trace) -> Score | None:
-        method = getattr(scorer, "score", scorer)
+        # ``score_async`` is how a judge-backed scorer reaches its judge. A
+        # scorer offering both is called through the async one, because the sync
+        # path deliberately skips judge-mode expectations rather than guessing.
+        method = getattr(scorer, "score_async", None) or getattr(scorer, "score", scorer)
         result = method(case, trace)
         if inspect.isawaitable(result):
             awaited: Score | None = await result
@@ -473,6 +482,12 @@ class Runner:
             status = "aborted_budget"
         elif not complete:
             status = "incomplete"
+        elif self.judge is not None and getattr(self.judge, "degraded", False):
+            # The judge failed often enough to taint its own numbers. The run is
+            # still complete: every case was scored, and the deterministic
+            # metrics in this report are real measurements. Only the
+            # judge-derived ones are excluded from the gate.
+            status = "degraded"
 
         durations = sorted(outcome.duration_ms for outcome in outcomes)
         known_costs = [o.cost_usd for o in outcomes if o.cost_usd is not None]
@@ -510,7 +525,7 @@ class Runner:
             metrics=build_metrics(outcomes, seed=seed, scorer_names=scorer_names),
             outcomes=outcomes,
             confusion=build_confusion(outcomes, expected_labels=expected_labels),
-            judge=JudgeInfo(),
+            judge=self._judge_info(),
             costs=Costs(
                 total_usd=sum(known_costs) if known_costs else None,
                 mean_usd=(sum(known_costs) / len(known_costs)) if known_costs else None,
@@ -528,6 +543,45 @@ class Runner:
             split_hash=dataset.split_hash(),
             traces=traces,
         )
+
+    def _judge_info(self) -> JudgeInfo:
+        """The report's judge block, from the judge itself when there is one."""
+        if self.judge is None:
+            return JudgeInfo()
+        info = getattr(self.judge, "info", None)
+        if callable(info):
+            built: JudgeInfo = info()
+            return built
+        return JudgeInfo()
+
+    def _preflight_judge(self) -> None:
+        """Refuse a judge whose family matches the model the run will use.
+
+        ``ClaimJudge`` already refuses a matching *configured* family. This checks
+        the family the run will actually resolve to, because a config can name one
+        model and the target can call another.
+
+        Ordered after the side-effect check on purpose: a run that could email a
+        real recruiter must fail on that, not on a judge misconfiguration.
+        """
+        if self.judge is None:
+            return
+
+        judge_family = getattr(self.judge, "family", None)
+        if not isinstance(judge_family, str):
+            return
+
+        from toolproof.judge.judge import infer_family
+
+        for model_id in self.env_overrides.get("resolved_models", []):
+            inferred = infer_family(str(model_id))
+            if inferred is not None and inferred == judge_family:
+                raise PreflightError(
+                    f"judge family {judge_family!r} matches the target's resolved "
+                    f"model {model_id!r}. A model judging its own family's output "
+                    f"is the bias with the strongest evidence behind it, so the "
+                    f"run refuses to start."
+                )
 
     def _env(self, fault_profile: str | None = None) -> Env:
         from toolproof import __version__

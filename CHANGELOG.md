@@ -221,6 +221,61 @@ versioned independently of the package.
   disagreeing prediction is precisely an unstable case, and inventing one value
   for it would hide that.
 
+- `ClaimJudge`: two versioned calls at temperature 0. Claim extraction splits a
+  free-text answer into at most 12 atomic claims; verification labels each one
+  `supported`, `contradicted` or `not_in_evidence`, one call per claim, so the
+  verifier never sees the other claims, the conversation, or the agent identity.
+- Malformed output is retried twice with the same input and then labelled
+  `judge_error`. A label outside the three is a parse failure, not a fourth
+  opinion: a judge that guesses when it could not parse its own output is worse
+  than no judge. `judge_error` is never cached, so a transient outage does not
+  become permanent.
+- The self-preference check refuses to construct a judge whose model family
+  matches the agent's, and the runner re-checks it against the model the run
+  actually resolves to. It fails closed: an unrecognised model id with no
+  declared family is refused, and a declared family that disagrees with the one
+  inferred from the id is refused rather than one being picked.
+- Claim and evidence are delimited data, and the closing delimiters are escaped
+  so content cannot break out of its own block. The prompt instruction is the
+  second line of defence, not the only one.
+- Four prompt-injection fixtures ship with the library (`load_injection_fixtures`):
+  a direct override, a fake system turn, a delimiter break-out, and one in Hindi.
+  Each fixture's human label is what a judge that ignored the instruction would
+  say, so a flip is visible as `injections_held` falling below `injections`.
+- `self_consistency()` samples one claim repeatedly and reports whether the
+  labels agree, bypassing the cache: sampling a cache three times would report
+  perfect consistency and measure nothing.
+- Verdicts are cached on SHA-256 of claim, evidence, prompt version and model.
+  The claim *id* is deliberately excluded, so two cases making the same claim
+  about the same evidence share one verdict. A prompt-version or model change
+  invalidates the cache, because a cached verdict from an older prompt answers a
+  different question.
+- `JudgeModel` protocol plus `ScriptedJudge`, a deterministic offline fake. Core
+  ships no provider SDK, so every judge behaviour is testable without credentials
+  and a tracing-only user gains no dependency.
+- `cohens_kappa` and `calibrate`: agreement against human labels, the 3x3 matrix,
+  and precision and recall for `contradicted` specifically. Kappa rather than raw
+  agreement because raw agreement is inflated by the base rate — on a set that is
+  80% `supported`, a judge that always answers `supported` scores 80% agreement
+  and kappa 0. Below 0.6 the result is marked not publishable.
+- `judge_error` outcomes are excluded from kappa and counted separately. Folding
+  them in as wrong labels would understate agreement and hide an outage.
+- Agreement is sliceable by language, so a failure in Hindi cannot hide behind
+  English.
+- `toolproof judge calibrate`: prints kappa, the matrix, contradicted precision
+  and recall, per-language agreement and the injection tally. Exits 0 for a low
+  kappa (a bad judge is a valid measurement) unless `--fail-below-threshold`.
+- A judge error rate above 2% makes the run `degraded`. A degraded run is still
+  `complete` and still gates on its deterministic metrics; only the judge-derived
+  ones are excluded, because a flaky judge is not a reason to stop checking
+  routing. An *unscored* case still makes the run `incomplete`, which is the
+  stronger claim and wins.
+- `scorers.facts(judge=...)` and `scorers.forbidden_claims(judge=...)` decide
+  `judge`-mode expectations. A `judge_error` leaves the expectation unmeasured,
+  never missing: an outage is not evidence that the agent omitted a fact. For
+  forbidden claims that rule is safety-critical — a claim the judge could not
+  decide is unmeasured, never clean.
+
 ### Deferred
 
 - `toolproof.langchain.wrap(base_tool)` is deferred past 0.1.0. The `@tool`

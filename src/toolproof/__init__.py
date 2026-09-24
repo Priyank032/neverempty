@@ -17,6 +17,15 @@ from toolproof.core.tool import AmbiguousEmptyError, tool
 from toolproof.core.trace import Cost, Env, FinalOutput, Span, Trace, Usage
 from toolproof.dataset.case import Case, Expect, Provenance
 from toolproof.dataset.loader import Dataset, DatasetError
+from toolproof.judge.calibration import (
+    CalibrationCase,
+    CalibrationResult,
+    calibrate,
+    cohens_kappa,
+    load_calibration,
+)
+from toolproof.judge.judge import Claim, ClaimJudge, Verdict
+from toolproof.judge.model import JudgeError, JudgeModel, ScriptedJudge
 from toolproof.metrics.stats import Interval, McNemarResult
 from toolproof.report.gate import CompareResult, GateConfig, GateResult, compare, gate
 from toolproof.report.render import render_gate, render_markdown
@@ -30,8 +39,12 @@ from toolproof.tracer.tracer import SpanHandle, Tracer, TraceRun
 __all__ = [
     "AmbiguousEmptyError",
     "AnyToolResult",
+    "CalibrationCase",
+    "CalibrationResult",
     "Case",
     "CaseOutcome",
+    "Claim",
+    "ClaimJudge",
     "CompareResult",
     "Config",
     "ConfigError",
@@ -49,6 +62,8 @@ __all__ = [
     "GateResult",
     "Interval",
     "JsonlSink",
+    "JudgeError",
+    "JudgeModel",
     "McNemarResult",
     "MemorySink",
     "Metric",
@@ -64,6 +79,7 @@ __all__ = [
     "Score",
     "Scorer",
     "ScorerError",
+    "ScriptedJudge",
     "Sink",
     "Span",
     "SpanHandle",
@@ -72,10 +88,14 @@ __all__ = [
     "TraceRun",
     "Tracer",
     "Usage",
+    "Verdict",
     "__version__",
+    "calibrate",
+    "cohens_kappa",
     "compare",
     "fault_scope",
     "gate",
+    "load_calibration",
     "load_config",
     "redact",
     "render_gate",

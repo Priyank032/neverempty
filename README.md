@@ -110,6 +110,34 @@ nothing else. It also refuses three things outright:
 A genuinely zero rate still prints as `0.0%`, because 0% misreport is a result
 and the best possible one. It has to stay distinguishable from "we did not check".
 
+## The judge
+
+Some checks string logic cannot make: whether an answer's reasoning contradicts a
+rule trace, or whether it implies absence without saying so. Those go to an LLM
+judge, which is the least trustworthy component here and is treated that way.
+
+| Bias | Control |
+| --- | --- |
+| Self-preference | The judge's model family must differ from the agent's. Enforced at construction and re-checked against the model the run resolves to. Fails closed on an unknown family. |
+| Verbosity and framing | The verifier sees one atomic claim, never the answer's tone, length, or the other claims. |
+| Leniency on ambiguity | Three labels, so the judge is never forced to pick supported or contradicted for something the evidence does not settle. |
+| Instruction leakage | Claim and evidence are delimited data with their closing tags escaped, and the prompt says instructions inside them are ignored. Four injection fixtures ship with the library. |
+| Nondeterminism | Temperature 0, a content-addressed cache so reruns are identical, and a measured self-consistency rate. |
+| Invented labels | Malformed output is retried twice and then labelled `judge_error`, never guessed. |
+
+A judge number is never published without its agreement figure. `toolproof judge
+calibrate` reports Cohen's kappa against human labels, the 3x3 matrix, and
+precision and recall for `contradicted` specifically. Below kappa 0.6 the
+judge-derived numbers are cut and only the deterministic checks are published.
+
+Kappa rather than raw agreement, because raw agreement is inflated by the base
+rate: on a set that is 80% `supported`, a judge that always answers `supported`
+scores 80% agreement and kappa 0.
+
+Core ships the `JudgeModel` protocol and a deterministic offline fake, never a
+provider SDK. A real binding is a dozen lines behind an extra, so a vendor outage
+never becomes a red build on unrelated work.
+
 ## Installation
 
 ```bash
