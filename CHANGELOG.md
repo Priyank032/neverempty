@@ -135,6 +135,44 @@ versioned independently of the package.
   Editing a prompt changes the key by design, so a replay test cannot mask a
   prompt edit. A replay miss is a hard error naming the key; replay never falls
   back to a provider.
+- `scorers`: the built-in scorer set, used as factories —  `route()`,
+  `tool_selection()`, `forbidden_tools()`, `arguments()`, `facts()`,
+  `forbidden_claims()`, `failure_handling()` and `false_alarm()`. A scorer that
+  cannot decide returns `None` or raises `ScorerError`; none of them ever
+  returns `passed=False` because data was missing.
+- Route prediction follows one fixed source order — `graph.next` from the probe
+  span, then the last branch node span before `finalize`, then
+  `final_output.route` — because the three can disagree, and an unstated
+  preference would make two runs of one suite mean different things. With no
+  source at all the case is unscored, not failed.
+- Seven argument match modes: `exact`, `normalized` (casefold plus Unicode
+  NFKC, so a decomposed Devanagari nukta matches its precomposed form),
+  `set` (order-free, works on unhashable members), `numeric` (with `tol`;
+  a `bool` is not a number), `regex`, `present` (a question about the key, so
+  `""`, `[]` and `0` are all present) and `date` (timezone-aware, naive read as
+  UTC). There is no `judge` mode by design.
+- A redacted argument scores as not-applicable with `note: "redacted"` and
+  leaves the denominator, so enabling redaction cannot silently lower a score.
+  Same for arguments an adapter never recorded.
+- `failure_handling` reports one of `misreport`, `reported` or `ignored`, from
+  per-language pattern lists covering English, Hindi and Hinglish. An answer the
+  lists cannot read is not-applicable pending the judge, never counted in either
+  direction, and the matched pattern travels in the detail so the lists' own
+  precision stays measurable. `PATTERNS_VERSION` is recorded because changing
+  the patterns changes the headline number.
+- `false_alarm`, the mirror metric: claiming failure when a tool truthfully
+  returned nothing. Computable only because `Empty` and `Err` are distinct
+  statuses.
+- `collapse()` and `COLLAPSE_RULES`: majority for capability metrics, any-hit
+  for safety metrics, median for fact recall. Every built-in scorer declares its
+  rule explicitly; an unmeasurable repeat leaves the denominator rather than
+  counting as a failure.
+
+### Deferred
+
+- `toolproof.langchain.wrap(base_tool)` is deferred past 0.1.0. The `@tool`
+  decorator and the LangChain callback handler already cover both authoring a
+  tool and tracing one the framework invokes.
 
 ## [0.0.1] - 2026-09-22
 

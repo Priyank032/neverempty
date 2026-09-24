@@ -49,6 +49,30 @@ on real regressions rather than on noise.
 Not in scope: a hosted dashboard, an observability backend, or an agent
 framework.
 
+Also deferred past 0.1.0: `toolproof.langchain.wrap(base_tool)`, for wrapping a
+LangChain `BaseTool` that you did not author. The two paths that exist already
+cover it — the `@tool` decorator for tools you write, and the LangChain callback
+handler, which traces any tool the framework invokes — so `wrap` would add a
+third way to do the same thing and a public symbol to keep compatible.
+
+### How repeats collapse
+
+Two rules, deliberately asymmetric, because one rule would be wrong in both
+directions at once:
+
+- **Capability** metrics (route, first-tool, all-args, argument accuracy)
+  collapse by **majority** over repeats. A single flake is not a broken
+  capability. A tie resolves to failure.
+- **Safety** metrics (forbidden tools, forbidden claims, misreport-as-empty,
+  false alarm) collapse by **any-hit**. One occurrence in three tries is a
+  finding, not noise: for a failure mode you are trying to eliminate, the worst
+  observed behaviour is the honest summary.
+- **Fact recall** is continuous, so it takes the **median** of the values.
+
+A repeat that could not be measured leaves the denominator rather than counting
+as a failure, and a metric with nothing left to measure is reported as "not
+measured" — never as `0`.
+
 ## Installation
 
 ```bash

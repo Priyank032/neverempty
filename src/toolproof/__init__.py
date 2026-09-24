@@ -8,6 +8,7 @@ Anything reachable but unnamed here is private and may change in any release.
 # as a public module attribute, which the public-surface test rejects. Other
 # modules in the package are free to use it.
 
+from toolproof import scorers
 from toolproof.core.faults import FaultSpec, fault_scope
 from toolproof.core.results import AnyToolResult, Empty, Err, ErrorKind, Ok, ToolResult
 from toolproof.core.stubs import stub_scope
@@ -63,6 +64,7 @@ __all__ = [
     "__version__",
     "fault_scope",
     "redact",
+    "scorers",
     "stub_scope",
     "tool",
 ]
