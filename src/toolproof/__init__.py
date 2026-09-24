@@ -26,9 +26,15 @@ from toolproof.judge.calibration import (
 )
 from toolproof.judge.judge import Claim, ClaimJudge, Verdict
 from toolproof.judge.model import JudgeError, JudgeModel, ScriptedJudge
+from toolproof.metrics.reliability import (
+    Bucket,
+    ReliabilityCurve,
+    curve_from_outcomes,
+    reliability_curve,
+)
 from toolproof.metrics.stats import Interval, McNemarResult
 from toolproof.report.gate import CompareResult, GateConfig, GateResult, compare, gate
-from toolproof.report.render import render_gate, render_markdown
+from toolproof.report.render import render_gate, render_markdown, render_reliability
 from toolproof.report.report import CaseOutcome, Metric, Report, Score
 from toolproof.runner.runner import PreflightError, Runner, Scorer, ScorerError
 from toolproof.tracer import redact
@@ -39,6 +45,7 @@ from toolproof.tracer.tracer import SpanHandle, Tracer, TraceRun
 __all__ = [
     "AmbiguousEmptyError",
     "AnyToolResult",
+    "Bucket",
     "CalibrationCase",
     "CalibrationResult",
     "Case",
@@ -74,6 +81,7 @@ __all__ = [
     "PreflightError",
     "Pricing",
     "Provenance",
+    "ReliabilityCurve",
     "Report",
     "Runner",
     "Score",
@@ -93,13 +101,16 @@ __all__ = [
     "calibrate",
     "cohens_kappa",
     "compare",
+    "curve_from_outcomes",
     "fault_scope",
     "gate",
     "load_calibration",
     "load_config",
     "redact",
+    "reliability_curve",
     "render_gate",
     "render_markdown",
+    "render_reliability",
     "scorers",
     "stub_scope",
     "tool",

@@ -14,6 +14,12 @@ sites::
 """
 
 from toolproof.scorers.arguments import ArgumentsScorer, arguments
+from toolproof.scorers.calibration import (
+    CONFIDENCE_KEYS,
+    CalibrationScorer,
+    calibration,
+    stated_confidence,
+)
 from toolproof.scorers.collapse import COLLAPSE_RULES, CollapseRule, collapse, collapse_rule
 from toolproof.scorers.facts import (
     FactsScorer,
@@ -41,9 +47,11 @@ from toolproof.scorers.tools import (
 __all__ = [
     "ABSENCE_PATTERNS",
     "COLLAPSE_RULES",
+    "CONFIDENCE_KEYS",
     "FAILURE_PATTERNS",
     "PATTERNS_VERSION",
     "ArgumentsScorer",
+    "CalibrationScorer",
     "CollapseRule",
     "FactsScorer",
     "FailureHandlingScorer",
@@ -53,6 +61,7 @@ __all__ = [
     "RouteScorer",
     "ToolSelectionScorer",
     "arguments",
+    "calibration",
     "collapse",
     "collapse_rule",
     "facts",
@@ -61,5 +70,6 @@ __all__ = [
     "forbidden_claims",
     "forbidden_tools",
     "route",
+    "stated_confidence",
     "tool_selection",
 ]

@@ -34,6 +34,7 @@ COLLAPSE_RULES: dict[str, CollapseRule] = {
     "forbidden_tools": "any_hit",
     "failure_handling": "any_hit",
     "false_alarm": "any_hit",
+    "calibration": "median",
 }
 """Every built-in scorer's rule, stated rather than inferred.
 
@@ -100,7 +101,7 @@ def collapse(name: str, repeats: Sequence[Score]) -> Score | None:
     return Score(passed=passed, value=value, detail=detail)
 
 
-CARRIED_DETAIL_KEYS = ("expected", "predicted", "outcome")
+CARRIED_DETAIL_KEYS = ("expected", "predicted", "outcome", "correct")
 """Per-case detail fields that survive the collapse.
 
 The collapsed score is the only thing the report and the confusion matrix see,
@@ -110,6 +111,20 @@ matrix would have no labels to put in its rows.
 A field is carried only when every measured repeat agrees on it. ``expected``
 comes from the dataset and always will; ``predicted`` disagreeing across repeats
 is precisely an unstable case, and inventing one value for it would hide that.
+
+``correct`` is here because the reliability curve is built from the collapsed
+scores. Without it the curve would receive confidences with no correctness
+attached and quietly measure nothing -- a bucket table full of empty cells and no
+error anywhere.
+
+The confidence itself is *not* carried: it is the collapsed ``value`` already,
+the median over the repeats. Carrying it as a detail field would require every
+repeat to state the identical number, so an agent that said 0.90, 0.91 and 0.89
+would drop out of the curve for being too consistent to disagree about.
+
+A case whose repeats disagree on ``correct`` does drop out. That is the honest
+outcome: the agent's answer was not stable, so there is no single event for its
+stated confidence to have been right about.
 """
 
 

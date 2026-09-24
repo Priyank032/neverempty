@@ -26,7 +26,7 @@ prediction cell would make the rows sum to fewer than the case count with no
 visible reason.
 """
 
-CONTINUOUS_METRICS = frozenset({"facts"})
+CONTINUOUS_METRICS = frozenset({"facts", "calibration"})
 """Metrics that are a mean of per-case fractions rather than a rate of successes.
 
 Wilson describes a binomial proportion, so it does not apply to these; the doc

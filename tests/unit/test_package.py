@@ -6,6 +6,7 @@ M0 row is done when CI is green on an empty package.
 
 from __future__ import annotations
 
+import importlib
 import importlib.metadata
 import subprocess
 import sys
@@ -69,3 +70,41 @@ def test_core_import_does_not_pull_optional_extras() -> None:
         "assert not hit, hit"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def test_no_model_field_warns_on_any_supported_pydantic() -> None:
+    """A field named ``model_*`` must declare ``protected_namespaces=()``.
+
+    pydantic reserves the ``model_`` prefix and warns on any field using it. The
+    warning fires on some 2.x versions and not others, and this project turns
+    warnings into errors, so an undeclared field makes the whole package fail to
+    import on a pydantic well inside the declared ``>=2.7,<3`` range -- and only
+    on that version, so the local suite stays green while a CI leg goes red.
+    """
+    import pkgutil
+
+    from pydantic import BaseModel
+
+    import toolproof
+
+    offenders: list[str] = []
+    for info in pkgutil.walk_packages(toolproof.__path__, f"{toolproof.__name__}."):
+        module = importlib.import_module(info.name)
+        for name in dir(module):
+            attribute = getattr(module, name)
+            if not (isinstance(attribute, type) and issubclass(attribute, BaseModel)):
+                continue
+            if attribute.__module__ != info.name:
+                continue
+            reserved = attribute.model_config.get("protected_namespaces", ("model_",))
+            # pydantic allows compiled patterns here as well as prefixes; only a
+            # string prefix is checked, which is the form this project uses.
+            prefixes = tuple(item for item in reserved if isinstance(item, str))
+            for field in attribute.model_fields:
+                if field.startswith(prefixes):
+                    offenders.append(f"{info.name}.{attribute.__name__}.{field}")
+
+    assert offenders == [], (
+        f"these fields collide with a pydantic protected namespace: {offenders}. "
+        f"Either rename the field or set protected_namespaces=() on the model."
+    )

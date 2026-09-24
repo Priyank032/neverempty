@@ -215,11 +215,21 @@ versioned independently of the package.
 
 ### Fixed
 
+- `CalibrationResult.model_id` collided with pydantic's protected `model_`
+  namespace without declaring `protected_namespaces=()`. pydantic warns on such
+  a field, this project turns warnings into errors, and the warning fires on
+  some 2.x versions and not others — so on pydantic 2.9, well inside the
+  declared `>=2.7,<3` range, importing `toolproof` at all raised. The local
+  suite stayed green because the pinned dev environment happened to use a
+  version where it does not fire. A test now walks every model in the package
+  and fails on any undeclared `model_*` field, so the next one cannot reach a
+  single CI leg unnoticed.
+
 - `collapse()` dropped the scorer's own detail, so the confusion matrix had no
   labels for its rows. Declared per-case fields (`expected`, `predicted`,
-  `outcome`) now survive the collapse, and only when every repeat agrees: a
-  disagreeing prediction is precisely an unstable case, and inventing one value
-  for it would hide that.
+  `outcome`, `correct`) now survive the collapse, and only when every repeat
+  agrees: a disagreeing prediction is precisely an unstable case, and inventing
+  one value for it would hide that.
 
 - `ClaimJudge`: two versioned calls at temperature 0. Claim extraction splits a
   free-text answer into at most 12 atomic claims; verification labels each one
@@ -275,6 +285,40 @@ versioned independently of the package.
   never missing: an outage is not evidence that the agent omitted a fact. For
   forbidden claims that rule is safety-critical — a claim the judge could not
   decide is unmeasured, never clean.
+
+- `scorers.calibration()` and the reliability curve: predictions bucketed by
+  stated confidence, accuracy measured per bucket, and expected calibration
+  error over the whole sample. Accuracy alone cannot see this — two agents with
+  identical accuracy differ completely in whether their confidence can be acted
+  on, and a clarify-branch or judge-escalation threshold set from a vendor's
+  calibration claim rather than a measured curve is set from nothing.
+- Ten buckets of width 0.1, half-open `[low, high)` with the top bucket closed,
+  so a confidence of exactly 1.0 has a home and no prediction lands in two
+  buckets. ECE is sample-weighted: an unweighted mean of bucket gaps would let a
+  bucket holding two predictions move the headline number as much as one holding
+  two hundred. The bucket count is printed with every ECE, because ECE is a
+  function of the bucketing and two curves bucketed differently are not
+  comparable.
+- The scorer never decides correctness. It names an existing scorer as its
+  ground-truth source, so the curve and that scorer's metric can never disagree
+  about whether a given case was right. `passed` is always `None`: a confident
+  wrong answer is already a route failure, and failing it twice would gate twice
+  on one event.
+- A missing confidence is not a zero one. No `structured` output, no confidence
+  key, a boolean, a string or an explicit null all read as not applicable, so an
+  agent that stated nothing never appears in the bottom bucket. A value outside
+  `[0, 1]` raises rather than being rescaled — a curve computed from an
+  undeclared scale is not reproducible.
+- Repeats collapse before bucketing, so 70 cases at 3 repeats contribute 70
+  predictions rather than 210. The collapsed confidence is the median, so
+  repeats stating 0.90, 0.91 and 0.89 survive; a case whose repeats disagree
+  about whether the agent was *right* drops out, because an unstable answer
+  gives its stated confidence no single event to have been right about.
+- `render_reliability`: the curve as a Markdown section, with the same
+  suppression rule as every other metric — a bucket below n=10 prints its hit
+  count, not a percentage, and empty buckets are omitted rather than printed as
+  zero. The overconfidence direction is named in words, because a signed number
+  alone invites a sign error in the reading.
 
 ### Deferred
 

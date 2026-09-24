@@ -18,6 +18,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from toolproof.metrics.reliability import (
+    BUCKET_COUNT,
+    ReliabilityCurve,
+    curve_from_outcomes,
+)
 from toolproof.report.gate import GateResult
 from toolproof.report.report import Metric, Report
 
@@ -29,6 +34,13 @@ INDICATIVE_MIN_N = 50
 
 NOT_MEASURED = "not measured"
 TOO_FEW = "too few to report a rate"
+
+OVERCONFIDENCE_EPSILON = 0.005
+"""Below half a percentage point, the curve is not called either way.
+
+Naming a direction for a gap that rounds to 0.0% would invite a reader to act on
+floating-point noise.
+"""
 
 
 def _percent(value: float) -> str:
@@ -208,6 +220,14 @@ def render_markdown(report: Report) -> str:
         ]
 
     lines += _confusion(report)
+
+    curve = curve_from_outcomes(report.outcomes)
+    if curve.measured:
+        # Rendered only when some case stated a confidence. A "not measured"
+        # calibration section on every report that never asked for one would
+        # train the reader to skip the section that matters.
+        lines += render_reliability(curve).splitlines()
+
     lines += _cost_and_latency(report)
 
     if report.judge.model:
@@ -302,6 +322,79 @@ def render_gate(result: GateResult) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+def render_reliability(curve: ReliabilityCurve) -> str:
+    """The reliability curve as a Markdown section.
+
+    Two conventions carried over from the metric table, for the same reasons:
+
+    - A bucket below ``SUPPRESS_BELOW_N`` prints its hit count, not a
+      percentage. "0%" from two predictions reads as a band where the agent is
+      always wrong, and it is not.
+    - Empty buckets are omitted rather than printed as zero. A band nobody
+      predicted into has no accuracy at all.
+
+    The bucket count travels with the ECE because ECE is a function of the
+    bucketing: two runs bucketed differently are not comparable, and a bare
+    number invites exactly that comparison.
+    """
+    lines = ["## Calibration", ""]
+    if not curve.measured or curve.ece is None or curve.overconfidence is None:
+        lines += [
+            f"Calibration: {NOT_MEASURED} — no case in this run stated a confidence.",
+            "",
+        ]
+        return "\n".join(lines)
+
+    direction = ""
+    if abs(curve.overconfidence) >= OVERCONFIDENCE_EPSILON:
+        word = "overconfident" if curve.overconfidence > 0 else "underconfident"
+        direction = (
+            f" The agent is {word} by "
+            f"{_percent(abs(curve.overconfidence))} on average"
+            f" (stated {_percent(curve.mean_confidence or 0.0)},"
+            f" accurate {_percent(curve.accuracy or 0.0)})."
+        )
+
+    lines += [
+        f"Expected calibration error (ECE): **{curve.ece:.3f}** "
+        f"over {BUCKET_COUNT} buckets, n={curve.n}." + direction,
+        "",
+    ]
+
+    rows: list[list[str]] = []
+    for bucket in curve.buckets:
+        if bucket.n < SUPPRESS_BELOW_N:
+            accuracy = f"{bucket.hits}/{bucket.n}"
+            note = f"{TOO_FEW} (n={bucket.n})"
+        else:
+            accuracy = _percent(bucket.accuracy)
+            note = "—"
+        rows.append(
+            [
+                bucket.label,
+                str(bucket.n),
+                accuracy,
+                _percent(bucket.mean_confidence),
+                f"{bucket.gap:.3f}",
+                note,
+            ]
+        )
+
+    lines += _table(
+        ["confidence", "n", "accuracy", "stated", "gap", "note"],
+        rows,
+    )
+    lines += [
+        "",
+        f"Maximum bucket gap (MCE): {curve.mce:.3f}. Brier score: {curve.brier:.4f}.",
+        "",
+        "ECE depends on the bucketing, so it is comparable only against another "
+        f"curve built with the same {BUCKET_COUNT} buckets.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 __all__ = [
     "INDICATIVE_MIN_N",
     "NOT_MEASURED",
@@ -309,4 +402,5 @@ __all__ = [
     "TOO_FEW",
     "render_gate",
     "render_markdown",
+    "render_reliability",
 ]

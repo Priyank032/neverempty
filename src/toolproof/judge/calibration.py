@@ -57,7 +57,17 @@ class CalibrationCase(BaseModel):
 class CalibrationResult(BaseModel):
     """What ``toolproof judge calibrate`` reports."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+    """``protected_namespaces=()`` because ``model_id`` is a published field name.
+
+    pydantic reserves the ``model_`` prefix for its own API and warns on any
+    field that uses it. The warning fires on some 2.x versions and not others,
+    and this project turns warnings into errors, so leaving it unset makes the
+    whole package fail to import on a pydantic well inside the declared
+    ``>=2.7,<3`` range. Renaming the field was the alternative and is worse:
+    ``model_id`` is what the calibration JSON and the CLI already print, and
+    there is no collision with a real pydantic attribute.
+    """
 
     model_id: str
     prompt_version: str

@@ -166,6 +166,16 @@ def answer_of(trace: Trace) -> str | None:
     return trace.final_output.answer
 
 
+def structured_of(trace: Trace) -> dict[str, Any] | None:
+    """The agent's structured output, or ``None`` when it produced none.
+
+    Read through a helper for the same reason as ``answer_of``: the field is
+    part of a cross-language contract, and a scorer reaching into the model
+    directly would be one more place to update when the shape moves.
+    """
+    return trace.final_output.structured
+
+
 __all__ = [
     "FINALIZE_NODES",
     "PLUMBING_NODES",
@@ -176,6 +186,7 @@ __all__ = [
     "node_spans",
     "recorded_args",
     "route_prediction",
+    "structured_of",
     "tool_names",
     "tool_spans",
 ]
