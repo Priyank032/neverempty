@@ -38,6 +38,7 @@ KNOWN_SCORERS = frozenset(
         "forbidden_claims",
         "failure_handling",
         "false_alarm",
+        "calibration",
     }
 )
 """Scorer names a config may request.

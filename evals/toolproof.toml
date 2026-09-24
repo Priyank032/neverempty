@@ -1,0 +1,52 @@
+# NextRole eval configuration.
+#
+# The doc places this in the ai-career-copilot repo; it lives here so toolproof
+# ships a config its own CI can validate. Point the agent repo at this file, or
+# copy it and change [target].entrypoint.
+
+[project]
+name = "nextrole"
+toolproof_version = "0.1.0"
+
+[target]
+entrypoint = "toolproof.evals.targets:run_nextrole"
+git_sha_from = "git"
+prompt_modules = ["app.agents.intent_router:INTENT_CLASSIFICATION_PROMPT"]
+side_effect_tools = ["send_gmail", "save_application", "send_email"]
+stubs = "toolproof.evals.targets:STUBS"
+
+[[suite]]
+name = "nextrole.routing"
+path = "evals/nextrole/routing.jsonl"
+split = "test"
+suite_version = 1
+scorers = ["route", "tool_selection", "forbidden_claims", "calibration"]
+
+[[suite]]
+name = "nextrole.failure"
+path = "evals/nextrole/failure.jsonl"
+split = "test"
+suite_version = 1
+scorers = ["route", "failure_handling", "false_alarm", "forbidden_claims"]
+
+[run]
+repeats = 3
+concurrency = 8
+case_timeout_s = 120
+max_cost_usd = 5.0
+seed = 20260921
+cache = "evals/.cache"
+mode = "live"
+
+[judge]
+provider = "bedrock"
+model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+agent_family = "openai"
+calibration = "evals/calibration/judge.v1.jsonl"
+
+[gate]
+baseline = "evals/baselines/nextrole-routing.json"
+paired_alpha = 0.05
+max_unstable_rate = 0.10
+floors = { route_strict = 0.75, misreport_as_empty_max = 0.10 }
+warn = { p95_latency_increase = 0.25, cost_increase = 0.20 }

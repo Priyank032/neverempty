@@ -1,0 +1,127 @@
+name: Evals
+
+# The eval gate. Separate from CI because it needs credentials and costs money,
+# and because a red eval means "this agent got worse", not "this code is broken".
+#
+# It never runs automatically on a pull request from a fork: an eval run holds
+# provider keys and has a budget, and a fork PR must not be able to spend either.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "live (calls providers, costs money) or replay (cached)"
+        type: choice
+        options: [replay, live]
+        default: replay
+      suite:
+        description: "Suite to run, or 'all'"
+        type: string
+        default: all
+  schedule:
+    # Weekly, so a drift in a provider model is caught before a release rather
+    # than during one. Replay mode, so the scheduled run is free.
+    - cron: "17 4 * * 1"
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  validate:
+    name: dataset validates and suites are covered
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync
+        run: uv sync --group dev --all-extras
+
+      # Runs with no credentials: validation is pure and must stay that way, so
+      # a broken dataset is caught before anything is spent.
+      - name: Validate cases and split hashes
+        run: uv run toolproof validate evals/toolproof.toml
+
+      - name: Report suite coverage
+        run: uv run toolproof coverage evals/toolproof.toml --format markdown >> "$GITHUB_STEP_SUMMARY"
+
+  run:
+    name: run suites and gate
+    needs: validate
+    runs-on: ubuntu-latest
+    # Only on an explicit dispatch or the schedule, and never from a fork.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    environment: evals
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # compare needs the baseline's history to resolve the target sha.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync
+        run: uv sync --group dev --all-extras
+
+      - name: Restore the replay cache
+        uses: actions/cache@v4
+        with:
+          path: evals/.cache
+          key: evals-cache-${{ hashFiles('evals/**/*.jsonl') }}
+          restore-keys: evals-cache-
+
+      - name: Run suites
+        env:
+          # Judge and agent are different families by config; the preflight
+          # re-checks it against the models the run actually resolves to.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          NEXTROLE_GRAPH_FACTORY: app.agents.graph:build_orchestrator
+          TOOLPROOF_MODE: ${{ inputs.mode || 'replay' }}
+        run: |
+          uv run toolproof run evals/toolproof.toml \
+            --mode "$TOOLPROOF_MODE" \
+            --out evals/reports/candidate.json
+
+      - name: Render the report into the job summary
+        if: always()
+        run: uv run toolproof render evals/reports/candidate.json >> "$GITHUB_STEP_SUMMARY"
+
+      # The gate's exit code is the job's result, unchanged:
+      #   0 pass | 1 regression | 2 must-pass failed | 3 inconclusive | 4 invalid
+      - name: Gate against the baseline
+        run: |
+          uv run toolproof gate \
+            evals/baselines/nextrole-routing.json \
+            evals/reports/candidate.json \
+            --format markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: |
+            evals/reports/candidate.json
+          retention-days: 90

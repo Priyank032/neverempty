@@ -11,7 +11,9 @@ every other subcommand uses ``EXIT_OK`` / ``EXIT_INVALID`` / ``EXIT_USAGE``.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -69,6 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.set_defaults(handler=_validate)
 
+    _add_coverage(subcommands)
     _add_compare(subcommands)
     _add_gate(subcommands)
     _add_render(subcommands)
@@ -76,6 +79,120 @@ def build_parser() -> argparse.ArgumentParser:
     _add_judge(subcommands)
 
     return parser
+
+
+def _add_coverage(subcommands: Any) -> None:
+    coverage = subcommands.add_parser(
+        "coverage",
+        help="report per-branch label coverage for each suite in a config",
+        description=(
+            "Read a config, load each suite's dataset, and report how many "
+            "labelled cases each branch has. Exits non-zero when a suite is not "
+            "ready to publish a number, so an unlabelled split fails CI rather "
+            "than running and reporting a rate over an empty denominator."
+        ),
+    )
+    coverage.add_argument("config", metavar="CONFIG", help="path to toolproof.toml")
+    coverage.add_argument(
+        "--format",
+        choices=("text", "markdown"),
+        default="text",
+        help="output format (markdown for a CI job summary)",
+    )
+    coverage.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help=(
+            "report coverage but exit 0 even when a suite is short; for seeing "
+            "the labelling backlog without failing the build"
+        ),
+    )
+    coverage.set_defaults(handler=_coverage)
+
+
+def _coverage(args: argparse.Namespace) -> int:
+    """Per-branch coverage for every suite the config declares."""
+    from toolproof.config import ConfigError, load_config
+    from toolproof.evals.suites import MIN_PER_BRANCH, SuiteSpec, check_coverage
+
+    try:
+        config = load_config(args.config)
+    except ConfigError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID
+
+    branches = _declared_branches(config)
+    if branches is None:
+        print(
+            "no branch list available: coverage needs the suite's branches to "
+            "tell a mislabelled route from a real one. Set [target].entrypoint "
+            "to an adapter exposing BRANCHES, or run 'toolproof validate'.",
+            file=sys.stderr,
+        )
+        return EXIT_INVALID
+
+    blocks: list[str] = []
+    ready = True
+    for suite in config.suites:
+        spec = SuiteSpec(
+            name=suite.name,
+            branches=branches,
+            min_per_branch=MIN_PER_BRANCH,
+            split=suite.split,
+        )
+        try:
+            cases = Dataset.load(suite.path).cases
+        except DatasetError as exc:
+            # An empty or absent file is the starting state for labelling, and
+            # reporting the backlog is exactly what this command is for. Any
+            # other dataset error is a real problem and still stops the run.
+            if not _is_empty_dataset(suite.path):
+                print(f"{suite.path}: {exc}", file=sys.stderr)
+                return EXIT_INVALID
+            cases = []
+        report = check_coverage(cases, spec)
+        ready = ready and report.ok
+        blocks.append(report.render())
+
+    separator = "\n\n" if args.format == "markdown" else "\n\n" + "-" * 60 + "\n\n"
+    print(separator.join(blocks))
+
+    if ready or args.allow_incomplete:
+        return EXIT_OK
+    return EXIT_INVALID
+
+
+def _is_empty_dataset(path: str) -> bool:
+    """True when the file is absent or holds nothing but blank lines."""
+    target = Path(path)
+    if not target.exists():
+        return True
+    return not target.read_text(encoding="utf-8").strip()
+
+
+def _declared_branches(config: Any) -> tuple[str, ...] | None:
+    """The branch list from the configured adapter module.
+
+    Read from the target rather than from the config, because the branches are a
+    property of the agent: duplicating them in TOML would create a second place
+    to forget when the router grows an intent.
+    """
+    entrypoint = config.target.entrypoint
+    module_name = entrypoint.partition(":")[0]
+    for candidate in (module_name, module_name.rpartition(".")[0]):
+        if not candidate:
+            continue
+        try:
+            module = importlib.import_module(candidate)
+        except ImportError:
+            continue
+        branches = getattr(module, "BRANCHES", None)
+        if isinstance(branches, tuple) and branches:
+            return branches
+    # Fall back to the NextRole adapter, which is the one this repo ships.
+    from toolproof.evals.nextrole import BRANCHES
+
+    return BRANCHES
 
 
 def _add_compare(subcommands: Any) -> None:
