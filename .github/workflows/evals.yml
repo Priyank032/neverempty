@@ -108,12 +108,25 @@ jobs:
         if: always()
         run: uv run toolproof render evals/reports/candidate.json >> "$GITHUB_STEP_SUMMARY"
 
-      # The gate's exit code is the job's result, unchanged:
-      #   0 pass | 1 regression | 2 must-pass failed | 3 inconclusive | 4 invalid
+      # The gate's exit code is the job's result, unchanged. The one exception
+      # is a baseline that does not exist yet: the first run of a new suite has
+      # nothing to compare against, and failing the build for that would teach
+      # people to ignore this job. Every other invalid input -- an unreadable
+      # baseline, a mismatched suite_version -- still exits 4.
       - name: Gate against the baseline
         run: |
+          baseline=evals/baselines/nextrole-routing.json
+          if [ ! -f "$baseline" ]; then
+            {
+              echo "No baseline at $baseline yet, so there is nothing to"
+              echo "compare against. Promote this run to become one:"
+              echo ""
+              echo '    toolproof baseline promote evals/reports/candidate.json'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           uv run toolproof gate \
-            evals/baselines/nextrole-routing.json \
+            "$baseline" \
             evals/reports/candidate.json \
             --format markdown >> "$GITHUB_STEP_SUMMARY"
 

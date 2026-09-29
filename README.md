@@ -152,6 +152,7 @@ print a percentage below n=10, and labels anything below n=50 as indicative.
 ### 5. The CLI
 
 ```bash
+toolproof run evals/toolproof.toml         # run every suite the config declares
 toolproof validate evals/**/*.jsonl        # schema, duplicate ids, split hash
 toolproof coverage evals/toolproof.toml    # per-branch label backlog; non-zero if short
 toolproof compare base.json cand.json      # paired stats, markdown diff

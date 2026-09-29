@@ -5,7 +5,7 @@ fails a build on it, and the codes come from the doc's table rather than from
 this module's own error conventions. So ``gate`` returns them unchanged, and
 every other subcommand uses ``EXIT_OK`` / ``EXIT_INVALID`` / ``EXIT_USAGE``.
 
-``run`` and ``import`` land with the judge work; everything else is here.
+``run`` executes the suites a config declares; it is the primary entry point.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import argparse
 import importlib
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.set_defaults(handler=_validate)
 
+    _add_run(subcommands)
     _add_coverage(subcommands)
     _add_import(subcommands)
     _add_readme(subcommands)
@@ -82,6 +83,228 @@ def build_parser() -> argparse.ArgumentParser:
     _add_judge(subcommands)
 
     return parser
+
+
+def _add_run(subcommands: Any) -> None:
+    runner = subcommands.add_parser(
+        "run",
+        help="run the suites a config declares and write a report",
+        description=(
+            "Resolve the configured target, build the named scorers, and run each "
+            "suite. One report per suite. Exits non-zero when a run is incomplete, "
+            "because an incomplete run is a failure of the run rather than a "
+            "smaller sample."
+        ),
+    )
+    runner.add_argument("config", metavar="CONFIG", help="path to toolproof.toml")
+    runner.add_argument(
+        "--out",
+        metavar="PATH",
+        help=(
+            "where to write the report. With one suite this is the file; with "
+            "several it is a directory. Defaults to a 'reports' directory beside "
+            "the config."
+        ),
+    )
+    runner.add_argument(
+        "--suite",
+        metavar="NAME",
+        help="run only this suite, by name",
+    )
+    runner.add_argument(
+        "--mode",
+        choices=("live", "replay", "record"),
+        help="override [run].mode, so one config serves a live run and a replay",
+    )
+    runner.add_argument(
+        "--repeats",
+        type=int,
+        metavar="N",
+        help="override [run].repeats",
+    )
+    runner.set_defaults(handler=_run)
+
+
+def _run(args: argparse.Namespace) -> int:
+    """Run each configured suite. One report per suite."""
+    import asyncio
+
+    from toolproof.config import ConfigError, load_config
+    from toolproof.runner.runner import PreflightError, Runner, ScorerError
+
+    try:
+        config = load_config(args.config)
+    except ConfigError as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID
+
+    suites = list(config.suites)
+    if args.suite:
+        suites = [suite for suite in suites if suite.name == args.suite]
+        if not suites:
+            available = ", ".join(repr(s.name) for s in config.suites)
+            print(
+                f"no suite named {args.suite!r} in {args.config}; this config declares {available}",
+                file=sys.stderr,
+            )
+            return EXIT_INVALID
+
+    try:
+        target = _resolve_entrypoint(config.target.entrypoint)
+        stubs = _resolve_stubs(config.target.stubs)
+    except (ImportError, AttributeError, TypeError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return EXIT_INVALID
+
+    destination = _report_destination(args, len(suites))
+    worst = EXIT_OK
+
+    for suite in suites:
+        try:
+            dataset = Dataset.load(suite.path, split=suite.split)
+        except DatasetError as exc:
+            print(f"{suite.path}: {exc}", file=sys.stderr)
+            for problem in exc.problems[:20]:
+                print(f"  {problem}", file=sys.stderr)
+            return EXIT_INVALID
+
+        try:
+            scorer_objects = _build_scorers(suite.scorers)
+        except (AttributeError, TypeError) as exc:
+            print(f"suite {suite.name!r}: {exc}", file=sys.stderr)
+            return EXIT_INVALID
+
+        run_config = config.run
+        runner = Runner(
+            target=target,
+            scorers=scorer_objects,
+            repeats=args.repeats or run_config.repeats,
+            concurrency=run_config.concurrency,
+            case_timeout_s=run_config.case_timeout_s,
+            max_cost_usd=run_config.max_cost_usd,
+            cache=run_config.cache,
+            mode=args.mode or run_config.mode,
+            seed=run_config.seed,
+            stubs=stubs,
+            suite_version=suite.suite_version,
+            config_hash=config.config_hash(),
+        )
+
+        try:
+            report = asyncio.run(runner.run(dataset))
+        except PreflightError as exc:
+            # A preflight refusal is the point, not a crash: an eval that could
+            # touch the outside world must not start.
+            print(f"preflight refused suite {suite.name!r}: {exc}", file=sys.stderr)
+            return EXIT_INVALID
+        except ScorerError as exc:
+            print(f"suite {suite.name!r}: {exc}", file=sys.stderr)
+            return EXIT_INVALID
+
+        path = _report_path(destination, suite.name, len(suites))
+        report.save(path)
+        print(
+            f"{suite.name}: status={report.status} "
+            f"{report.counts.scored}/{report.counts.cases} scored -> {path}"
+        )
+
+        if not report.complete:
+            # An incomplete run is a failure of the run, never a smaller sample,
+            # so the exit code says so rather than leaving it to be noticed.
+            print(
+                f"  {report.counts.unscored} case(s) unscored; an incomplete run "
+                f"is a failure of the run, not a smaller sample",
+                file=sys.stderr,
+            )
+            worst = EXIT_INVALID
+
+    return worst
+
+
+def _resolve_entrypoint(spec: str) -> Any:
+    """Import ``module:name`` and return it, requiring it to be callable."""
+    resolved = _resolve_object(spec, "[target].entrypoint")
+    if not callable(resolved):
+        raise TypeError(f"[target].entrypoint {spec!r} is not callable")
+    return resolved
+
+
+def _resolve_object(spec: str, field: str) -> Any:
+    """Import ``module:name`` and return whatever it is.
+
+    Separate from ``_resolve_entrypoint`` because the two fields want different
+    things: an entrypoint must be callable, while ``[target].stubs`` is normally
+    a plain dict. Reusing the callable check here rejected a perfectly good
+    mapping.
+    """
+    if ":" not in spec:
+        raise ValueError(f"{field} must be 'module:name', got {spec!r}")
+    module_name, _, attribute = spec.partition(":")
+    module = importlib.import_module(module_name)
+    resolved = getattr(module, attribute, None)
+    if resolved is None:
+        raise AttributeError(f"{module_name!r} has no attribute {attribute!r}")
+    return resolved
+
+
+def _resolve_stubs(spec: str | None) -> dict[str, Any] | None:
+    """Import the stub mapping, when the config names one.
+
+    A callable is accepted as a factory, so a caller can build stubs lazily —
+    but a dict is the normal case, and it is checked first because a dict is
+    not callable and a Mapping subclass might be.
+    """
+    if not spec:
+        return None
+    mapping = _resolve_object(spec, "[target].stubs")
+    if not isinstance(mapping, Mapping) and callable(mapping):
+        mapping = mapping()
+    if not isinstance(mapping, Mapping):
+        raise TypeError(
+            f"[target].stubs {spec!r} resolved to {type(mapping).__name__}, "
+            f"not a mapping of tool name to stub"
+        )
+    return dict(mapping)
+
+
+def _build_scorers(names: Sequence[str]) -> list[Any]:
+    """Construct each named scorer from the scorers package.
+
+    The config validator already rejects an unknown name, so a miss here means
+    the registry and the validator have drifted apart, which is worth saying
+    loudly rather than skipping.
+    """
+    from toolproof import scorers as registry
+
+    built: list[Any] = []
+    for name in names:
+        factory = getattr(registry, name, None)
+        if factory is None or not callable(factory):
+            raise AttributeError(
+                f"scorer {name!r} passed config validation but has no factory in "
+                f"toolproof.scorers; the registry and the validator have drifted"
+            )
+        built.append(factory())
+    return built
+
+
+def _report_destination(args: argparse.Namespace, suite_count: int) -> Path:
+    if args.out:
+        return Path(args.out)
+    return Path(args.config).resolve().parent / "reports"
+
+
+def _report_path(destination: Path, suite: str, suite_count: int) -> Path:
+    """Where one suite's report lands.
+
+    With several suites the destination is a directory, so two suites cannot
+    silently overwrite each other's report.
+    """
+    if suite_count == 1 and destination.suffix == ".json":
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        return destination
+    destination.mkdir(parents=True, exist_ok=True)
+    return destination / f"{suite}.json"
 
 
 def _add_coverage(subcommands: Any) -> None:

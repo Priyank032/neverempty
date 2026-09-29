@@ -159,6 +159,16 @@ runner = Runner(
 report = asyncio.run(runner.run(dataset))
 ```
 
+Or, with a config file, the same run is one command:
+
+```bash
+toolproof run evals/toolproof.toml --out evals/reports/candidate.json
+```
+
+That reads `[target].entrypoint`, builds the scorers each suite names, and writes
+one report per suite. It exits non-zero when a run is incomplete, because an
+incomplete run is a failure of the run rather than a smaller sample.
+
 `stubs` is not optional for a tool marked `side_effect=True`. The runner refuses
 to start without one, and it does not reason about whether that tool is
 reachable — a run that *could* email a real recruiter fails at preflight.
