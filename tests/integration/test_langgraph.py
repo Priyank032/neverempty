@@ -10,6 +10,7 @@ Gmail send, and a routing eval must never be able to email a real recruiter.
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 import pytest
@@ -166,7 +167,31 @@ class TestRouteSource:
         assert result.reached_end is True
 
 
+# On Python 3.10, langgraph does not propagate the callback context into a
+# node's async task, so an LLM invoked *inside a node* fires no callback at all:
+# not on_chat_model_start, not on_llm_end. Verified by isolating both variables —
+# with langchain-core 1.6.6 held constant, the same model called directly fires
+# its callbacks on 3.10 and inside a node does not, while on 3.12 both work.
+#
+# So the handler is not at fault, and its own 26 tests pass on 3.10. These two
+# assert an upstream capability that does not exist there. Skipped rather than
+# weakened, because the assertion is the right one everywhere it can hold, and
+# deleting it would lose coverage on the four versions where it does.
+_NODE_CALLBACKS_PROPAGATE = sys.version_info >= (3, 11)
+
+needs_node_callbacks = pytest.mark.skipif(
+    not _NODE_CALLBACKS_PROPAGATE,
+    reason=(
+        "langgraph does not propagate callbacks into a node's async task on "
+        "Python 3.10, so an LLM called inside a node emits no callback for the "
+        "handler to capture. The handler itself is covered by "
+        "tests/integration/test_langchain_handler.py, which passes on 3.10."
+    ),
+)
+
+
 class TestHandlerCapturesUsage:
+    @needs_node_callbacks
     async def test_usage_from_a_fake_llm_reaches_the_trace(self) -> None:
         from examples.fixture_agent import build_llm_graph
 
@@ -182,6 +207,7 @@ class TestHandlerCapturesUsage:
         assert trace.usage.output_tokens == 5
         assert trace.usage.usage_missing is False
 
+    @needs_node_callbacks
     async def test_the_resolved_model_is_captured_separately(self) -> None:
         from examples.fixture_agent import build_llm_graph
 
