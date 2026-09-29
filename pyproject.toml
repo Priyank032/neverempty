@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "toolproof"
-version = "0.0.1"
+version = "0.1.0"
 description = "Evaluate and trace tool-calling LLM agents. Tool failure can never look like an empty result."
 readme = "README.md"
 license = "Apache-2.0"

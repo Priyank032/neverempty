@@ -12,7 +12,71 @@ versioned independently of the package.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-09-29
+
+The library is complete against the design doc. What it does **not** yet carry
+is measured results for the two dogfood agents: those need hand-written ground
+truth (330 routing labels, ~33 fault labels, ~60 judge labels), and a label
+written by a model would make every published number a measure of one model
+agreeing with another. `toolproof coverage` refuses to run a suite until they
+exist, and the README's Numbers section is generated from committed reports, so
+it stays empty rather than carrying a placeholder.
+
 ### Added
+- `toolproof.evals`: the eval harness. `SuiteSpec` and `check_coverage` refuse a
+  suite that cannot support its own numbers — an empty split, a branch below the
+  per-branch floor, or a label naming a route the agent cannot produce.
+  `toolproof coverage` exits non-zero on any of those, so an unlabelled suite
+  fails CI rather than publishing a rate over an empty denominator. This
+  library's own headline rule, applied to its own dataset.
+- `NextRoleAdapter`: routing cases go through `route_probe` (zero branch
+  executions, so a 330-case routing run cannot send an email), anything else
+  executes the graph with stubs bound. `BRANCHES` is the eleven intents the live
+  router actually returns, not the design doc's seven: the doc predates the
+  router growing four intents and includes a `clarify` branch that does not
+  exist, and a branch list disagreeing with the router would score a whole intent
+  zero forever without ever looking like an error. That resizes the frozen split
+  to 330, because eleven branches at the doc's own 30-per-branch floor is 330 and
+  210 would leave 19 per branch — noise by its own Wilson table.
+- `RecordingStub`: returns an explicit `Ok`, never `None`. A stub returning
+  `None` would raise under strict mode, and a falsy one would be the ambiguity
+  this library exists to remove.
+- YojanaKhoj consistency scoring with the doc's five categories, each carrying
+  its own denominator. Pooling them would let a structurally protected category
+  hide an exposed one: the hard rule filter removes rule-false schemes before the
+  LLM sees them, so verdict contradictions there are near zero by construction,
+  and the null cases are where the risk lives.
+- `evaluateRule` returns `null` for a missing field, and that null survives into
+  `expect.items` untouched. "Cannot evaluate" and "ineligible" are different
+  claims. A definite yes or no on a null rule is counted as an overclaim, and a
+  high `llm_confidence` there is its own separate finding.
+- Both of matchEngine's LLM-degraded fallback paths are excluded from scoring on
+  both sides of the bridge. They emit a fixed bilingual string and set
+  `llm_confidence` to either a rescaled ranking score or a hardcoded constant;
+  scoring that text would measure the fallback string, and scoring that number as
+  a confidence would measure the score function.
+- `toolproof import`: validates Trace v1 JSONL from another language and refuses
+  an export that cannot prove the match cache was bypassed, or whose LLM error
+  rate is above 10%. A cached run can serve one persona an explanation written
+  for another in the same age and income bucket, which contaminates exactly the
+  rate being measured; the refusal says that is a failure of the export rather
+  than of the agent.
+- `integrations/node/`: the export script and its test, written for the
+  YojanaKhoj repo rather than committed into it. Exercised against that repo's
+  real `ruleEvaluator` and its 103 real scheme files.
+- `JevJudge`: a typed-decision backend behind `JudgeModel`, rendering the same
+  JSON the text judge's parser reads so the parser, the retries and the cache are
+  shared rather than duplicated. Not run and not endorsed: access is waitlisted
+  and the vendor's calibration claim is a claim. It is deliberately absent from
+  `toolproof.__all__`, because an unrun, unvalidated backend is not part of the
+  promised API. Every confidence it sees is recorded, so the reliability curve
+  can settle the calibration question with data.
+- `toolproof readme`: renders the published-numbers table from committed reports
+  and `--check` fails CI on drift. Judge-derived numbers are cut below kappa 0.6,
+  and an unmeasured kappa is not a passing one. An incomplete run publishes
+  nothing and is named under "Not published".
 
 - `Ok`, `Empty` and `Err`: the tool result union, discriminated on `status`
   and frozen. `truncated` is a flag on `Ok`, not a fourth variant.
@@ -215,6 +279,15 @@ versioned independently of the package.
 
 ### Fixed
 
+- Trace v1 caught three bugs in the Node exporter before it ran once: missing
+  required `usage` and `cost`, missing required `env` fields, and a trace-level
+  status of `"error"`, which is not a member of the enum (an LLM failure inside
+  the target is a `target_error`). That is the cross-language contract earning
+  its keep — the same schema validates on both sides.
+- The `calibration` scorer was added to the runtime in M12 but never registered
+  in the config's known-scorer list, so a config naming it was rejected. The
+  config validator caught it, which is what it is for.
+
 - `CalibrationResult.model_id` collided with pydantic's protected `model_`
   namespace without declaring `protected_namespaces=()`. pydantic warns on such
   a field, this project turns warnings into errors, and the warning fires on
@@ -342,5 +415,6 @@ Name reservation and repository skeleton. No public API yet.
   on pydantic v2.
 - `toolproof --version` console script.
 
-[Unreleased]: https://github.com/priyank-agrawal/toolproof/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/priyank-agrawal/toolproof/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/priyank-agrawal/toolproof/releases/tag/v0.1.0
 [0.0.1]: https://github.com/priyank-agrawal/toolproof/releases/tag/v0.0.1
