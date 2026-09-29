@@ -3,9 +3,12 @@
 Evaluate and trace tool-calling LLM agents, with the one guarantee most
 harnesses miss: **a tool failure can never look like an empty result.**
 
-> **Status: 0.0.1, name reservation only.** There is no public API yet. This
-> repository is the skeleton described in M0 of the design doc; the first
-> usable release is 0.1.0. Do not depend on it.
+> **Status: 0.1.0, not yet on PyPI.** The library is complete and its public
+> API is the 71 names `toolproof/__init__.py` exports. What it does not yet
+> carry is measured results for a real agent: those need hand-written labels,
+> and a label written by a model would make every published number a measure of
+> one model agreeing with another. Install from a clone until the release is
+> tagged.
 
 ## The bug this exists to prevent
 
@@ -24,6 +27,143 @@ toolproof makes that unrepresentable in three places at once:
 - **The measurement.** Faults are injected on purpose, so the rate at which the
   agent misreports failure as absence is measured rather than assumed to be
   zero. Real timeouts are too rare in a test run to measure by waiting.
+
+## Quickstart
+
+Install from a clone (PyPI release pending):
+
+```bash
+git clone https://github.com/priyank-agrawal/toolproof
+cd toolproof && pip install -e .
+```
+
+### 1. A tool that cannot lie about being empty
+
+`@tool` is always called with parentheses. `empty_when` is the *only* way a
+plain value becomes `Empty` — falsiness is never inferred, because `0`, `False`
+and `""` are legitimate values.
+
+```python
+from toolproof import tool
+
+
+@tool(empty_when=lambda rows: rows == [])
+async def search_jobs(city: str) -> list[dict]:
+    if city == "Nowhere":
+        return []  # -> Empty
+    return [{"title": "Backend Engineer", "city": city}]  # -> Ok
+
+
+@tool()
+async def flaky_search(city: str) -> list[dict]:
+    raise TimeoutError("upstream timed out")  # -> Err, never raises
+```
+
+The three outcomes stay distinguishable all the way into the prompt. This is
+the whole point of the library, and it is what `to_model()` renders:
+
+```python
+>>> (await search_jobs(city="Pune")).to_model()
+{"status": "ok", "data": [{"title": "Backend Engineer", "city": "Pune"}], "truncated": false}
+
+>>> (await search_jobs(city="Nowhere")).to_model()
+{"status": "empty", "note": "The query succeeded and returned no matching records."}
+
+>>> (await flaky_search(city="Pune")).to_model()
+{"status": "error", "kind": "timeout", "note": "The tool failed. You do not know
+ whether matching data exists. Do not say that no data exists."}
+```
+
+A failed call tells the model, in words, not to claim absence. A perfectly typed
+error that serialises to `[]` in the tool message reproduces the original bug
+exactly, so the type and the text are fixed together.
+
+### 2. Your agent, as a plain async callable
+
+The runner's target is `async (Case, Tracer) -> None`. No framework required —
+the LangGraph adapter is a helper that builds such a callable, not a dependency.
+
+```python
+async def run_agent(case, tracer):
+    query = case.input.messages[-1].content
+    result = await search_jobs(city="Pune" if "Pune" in query else "Nowhere")
+
+    if result.status == "error":
+        answer = "The job search failed, so I could not check."
+    elif result.status == "empty":
+        answer = "No jobs found."
+    else:
+        answer = f"Found {len(result.value)} job(s)."
+
+    tracer.current_run.set_output(answer=answer, route="job_search")
+```
+
+### 3. A dataset
+
+One JSON object per line. Every field in `expect` is optional, and a scorer
+whose expectation is absent reports **not applicable** — never a pass.
+
+```json
+{"schema_version":1,"id":"demo-0001","suite":"demo.routing","split":"dev",
+ "input":{"messages":[{"role":"user","content":"jobs in Pune"}]},
+ "expect":{"route":{"label":"job_search"}}}
+```
+
+### 4. Run, report, gate
+
+```python
+import asyncio
+from toolproof import Dataset, Runner, Tracer, gate, render_markdown, scorers
+from toolproof.report.gate import GateConfig
+from toolproof.tracer.sinks import JsonlSink
+
+dataset = Dataset.load("demo.jsonl")  # fails on any bad line, with line numbers
+
+runner = Runner(
+    target=run_agent,
+    scorers=[scorers.route()],
+    tracer=Tracer(sink=JsonlSink("traces.jsonl")),
+    repeats=3,  # instability is reported, not hidden
+    concurrency=4,
+    seed=20260929,  # all randomness comes from this
+)
+report = asyncio.run(runner.run(dataset))
+
+report.save("report.json")
+print(render_markdown(report))
+
+result = gate(report, report, config=GateConfig())
+raise SystemExit(result.exit_code)
+```
+
+That run produces:
+
+```text
+dataset: 3 cases validated
+report:  status=ok complete=True  cases=3 scored=3
+metric route: value=1.0  n=3  ci=(0.439, 1.0)
+traces:  9 written (3 cases x 3 repeats)
+gate:    verdict=pass exit=0
+```
+
+The interval is wide because n=3. That is the point: the renderer refuses to
+print a percentage below n=10, and labels anything below n=50 as indicative.
+
+### 5. The CLI
+
+```bash
+toolproof validate evals/**/*.jsonl        # schema, duplicate ids, split hash
+toolproof coverage evals/toolproof.toml    # per-branch label backlog; non-zero if short
+toolproof compare base.json cand.json      # paired stats, markdown diff
+toolproof gate base.json cand.json         # exit 1 on a real regression
+toolproof render report.json               # markdown report
+toolproof import traces.jsonl --cases cases.jsonl   # traces from another language
+toolproof judge calibrate labels.jsonl     # kappa, 3x3 matrix, per-language slice
+toolproof readme evals/reports/*.json      # published numbers, linked to their reports
+```
+
+Exit codes from `gate` are the contract: `0` pass, `1` regression, `2` must-pass
+failed, `3` inconclusive, `4` invalid.
 
 ## Design principles
 
@@ -164,6 +304,15 @@ The region above is generated; regenerate and check it with:
 toolproof readme evals/reports/*.json
 toolproof readme evals/reports/*.json --check README.md   # CI
 ```
+
+## Documentation
+
+| Page | Read it when |
+| --- | --- |
+| [Getting started](docs/getting-started.md) | Going from an untraced tool to a CI gate. |
+| [Writing labels](docs/writing-labels.md) | Before your first label. Decides whether your numbers mean anything. |
+| [Reading a report](docs/reading-a-report.md) | What each number is allowed to claim. |
+| [Architecture](docs/architecture.md) | Why a piece is not simpler. Each answer is a failure mode. |
 
 ## Contributing
 
