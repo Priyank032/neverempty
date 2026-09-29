@@ -17,7 +17,7 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 from langgraph.graph import END, StateGraph
 
-from toolproof import Ok, ToolResult, tool
+from neverempty import Ok, ToolResult, tool
 
 BRANCHES: list[str] = [
     "job_search",

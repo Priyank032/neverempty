@@ -16,8 +16,8 @@ from typing import Any
 
 import pytest
 
-from toolproof import Dataset
-from toolproof.dataset.loader import DatasetError, split_hash
+from neverempty import Dataset
+from neverempty.dataset.loader import DatasetError, split_hash
 
 
 def case_dict(case_id: str, split: str = "dev", **overrides: Any) -> dict[str, Any]:
@@ -384,13 +384,13 @@ class TestLookupEdgeCases:
         assert "list" in str(exc.value)
 
     def test_load_cases_returns_the_case_list(self, tmp_path: Path) -> None:
-        from toolproof.dataset.loader import load_cases
+        from neverempty.dataset.loader import load_cases
 
         path = write_jsonl(tmp_path / "d.jsonl", [case_dict("c-0001")])
         assert [case.id for case in load_cases(path)] == ["c-0001"]
 
     def test_the_case_schema_is_generatable(self) -> None:
-        from toolproof.dataset.loader import schema_dict
+        from neverempty.dataset.loader import schema_dict
 
         assert schema_dict()["title"]
 

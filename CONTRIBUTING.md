@@ -9,8 +9,8 @@ where that bug hides.
 Development uses [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/priyank-agrawal/toolproof
-cd toolproof
+git clone https://github.com/priyank-agrawal/neverempty
+cd neverempty
 uv sync --group dev --all-extras
 uv run pytest
 ```

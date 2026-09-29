@@ -18,10 +18,10 @@ from typing import Any
 
 import pytest
 
-from toolproof import Case, Dataset, Report, Runner, Tracer, scorers
-from toolproof.report.gate import GateConfig, compare, gate
-from toolproof.report.render import render_gate, render_markdown
-from toolproof.tracer.sinks import MemorySink
+from neverempty import Case, Dataset, Report, Runner, Tracer, scorers
+from neverempty.report.gate import GateConfig, compare, gate
+from neverempty.report.render import render_gate, render_markdown
+from neverempty.tracer.sinks import MemorySink
 
 pytest.importorskip("langgraph")
 

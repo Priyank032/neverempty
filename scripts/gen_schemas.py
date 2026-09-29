@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from toolproof.schemas import write_schemas
+from neverempty.schemas import write_schemas
 
 
 def main() -> int:

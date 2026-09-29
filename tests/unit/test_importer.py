@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from toolproof.evals.importer import ImportReport, import_export, load_traces
+from neverempty.evals.importer import ImportReport, import_export, load_traces
 
 
 def trace_row(
@@ -47,7 +47,7 @@ def trace_row(
         "cost": {"pricing_version": "openai-2026-09-01"},
         "status": "target_error" if llm_status == "error" else "ok",
         "env": {
-            "toolproof_version": "node-export",
+            "neverempty_version": "node-export",
             "pricing_version": "unpriced-node-export",
             "python_version": "n/a (node export)",
             "cache_bypassed": cache_bypassed,

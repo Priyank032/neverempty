@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from toolproof import JsonlSink, MemorySink, MultiSink, NullSink, Trace, redact
-from toolproof.core.trace import Cost, Env, FinalOutput, Usage
+from neverempty import JsonlSink, MemorySink, MultiSink, NullSink, Trace, redact
+from neverempty.core.trace import Cost, Env, FinalOutput, Usage
 
 
 def a_trace() -> Trace:
@@ -20,7 +20,7 @@ def a_trace() -> Trace:
         final_output=FinalOutput(),
         usage=Usage(),
         cost=Cost(pricing_version="v1"),
-        env=Env(toolproof_version="0.0.1", pricing_version="v1", python_version="3.12.0"),
+        env=Env(neverempty_version="0.0.1", pricing_version="v1", python_version="3.12.0"),
     )
 
 

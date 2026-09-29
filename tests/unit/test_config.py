@@ -15,12 +15,12 @@ from pathlib import Path
 
 import pytest
 
-from toolproof.config import Config, ConfigError, load_config
+from neverempty.config import Config, ConfigError, load_config
 
 DOC_CONFIG = """
 [project]
 name = "nextrole"
-toolproof_version = ">=0.1,<0.2"
+neverempty_version = ">=0.1,<0.2"
 
 [target]
 entrypoint = "evals.targets:run_nextrole"
@@ -68,7 +68,7 @@ max_unstable_rate = 0.10
 """
 
 
-def write(tmp_path: Path, text: str, name: str = "toolproof.toml") -> Path:
+def write(tmp_path: Path, text: str, name: str = "neverempty.toml") -> Path:
     path = tmp_path / name
     path.write_text(text, encoding="utf-8")
     return path
@@ -138,7 +138,7 @@ class TestStrictness:
         path = write(tmp_path, "[project\nname = broken")
         with pytest.raises(ConfigError) as exc:
             load_config(path)
-        assert "toolproof.toml" in str(exc.value)
+        assert "neverempty.toml" in str(exc.value)
 
     def test_a_config_with_no_suite_is_rejected(self, tmp_path: Path) -> None:
         """A config that declares nothing to run measures nothing."""
@@ -311,17 +311,17 @@ class TestVersionConstraint:
     def test_a_satisfied_version_constraint_loads(self, tmp_path: Path) -> None:
         path = write(
             tmp_path,
-            '[project]\nname = "x"\ntoolproof_version = ">=0.0,<1"\n'
+            '[project]\nname = "x"\nneverempty_version = ">=0.0,<1"\n'
             '[target]\nentrypoint = "m:f"\n'
             '[[suite]]\nname = "a.b"\npath = "x.jsonl"\nsplit = "test"\n',
         )
-        assert load_config(path).project.toolproof_version == ">=0.0,<1"
+        assert load_config(path).project.neverempty_version == ">=0.0,<1"
 
     def test_the_constraint_is_recorded_rather_than_enforced_silently(self, tmp_path: Path) -> None:
         """The constraint travels into the report so a reader can see which
         library version the config expected, even when the check is advisory."""
         config = load_config(write(tmp_path, DOC_CONFIG))
-        assert config.project.toolproof_version == ">=0.1,<0.2"
+        assert config.project.neverempty_version == ">=0.1,<0.2"
 
 
 class TestSuiteModel:

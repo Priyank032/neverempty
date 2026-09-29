@@ -11,7 +11,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from toolproof.core import stubs
+from neverempty.core import stubs
 
 
 @pytest.fixture(autouse=True)

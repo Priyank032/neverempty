@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from toolproof.dataset.case import Case
-from toolproof.evals.nextrole import (
+from neverempty.dataset.case import Case
+from neverempty.evals.nextrole import (
     BRANCHES,
     FAILURE_SUITE,
     ROUTING_SUITE,

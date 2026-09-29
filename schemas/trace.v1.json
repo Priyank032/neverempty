@@ -76,6 +76,10 @@
           "title": "Mode",
           "type": "string"
         },
+        "neverempty_version": {
+          "title": "Neverempty Version",
+          "type": "string"
+        },
         "pricing_version": {
           "title": "Pricing Version",
           "type": "string"
@@ -144,14 +148,10 @@
           ],
           "default": null,
           "title": "Target Git Sha"
-        },
-        "toolproof_version": {
-          "title": "Toolproof Version",
-          "type": "string"
         }
       },
       "required": [
-        "toolproof_version",
+        "neverempty_version",
         "pricing_version",
         "python_version"
       ],
@@ -355,7 +355,7 @@
       "type": "object"
     }
   },
-  "$id": "https://github.com/priyank-agrawal/toolproof/blob/main/schemas/trace.v1.json",
+  "$id": "https://github.com/priyank-agrawal/neverempty/blob/main/schemas/trace.v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "One agent run, for one case and one repeat. Unknown keys are preserved on read: other languages and later versions write fields this reader does not know. A schema_version above the reader's is rejected.",
   "properties": {
@@ -470,6 +470,6 @@
     "trace_id",
     "usage"
   ],
-  "title": "toolproof Trace v1",
+  "title": "neverempty Trace v1",
   "type": "object"
 }

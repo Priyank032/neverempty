@@ -12,13 +12,13 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from toolproof import CaseOutcome, Metric, Report, Score
-from toolproof.core.trace import Env
+from neverempty import CaseOutcome, Metric, Report, Score
+from neverempty.core.trace import Env
 
 
 def env() -> Env:
     return Env(
-        toolproof_version="0.0.1", pricing_version="empty-2026-09-23", python_version="3.12.10"
+        neverempty_version="0.0.1", pricing_version="empty-2026-09-23", python_version="3.12.10"
     )
 
 

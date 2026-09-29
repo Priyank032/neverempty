@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof import Dataset, Runner, compare, gate, scorers
-from toolproof.dataset.case import Case
-from toolproof.evals.nextrole import BRANCHES, NextRoleAdapter
-from toolproof.evals.suites import SuiteSpec, check_coverage
-from toolproof.report.gate import GateConfig
-from toolproof.report.report import Report
-from toolproof.tracer.sinks import MemorySink
-from toolproof.tracer.tracer import Tracer
+from neverempty import Dataset, Runner, compare, gate, scorers
+from neverempty.dataset.case import Case
+from neverempty.evals.nextrole import BRANCHES, NextRoleAdapter
+from neverempty.evals.suites import SuiteSpec, check_coverage
+from neverempty.report.gate import GateConfig
+from neverempty.report.report import Report
+from neverempty.tracer.sinks import MemorySink
+from neverempty.tracer.tracer import Tracer
 
 pytestmark = pytest.mark.integration
 
@@ -108,7 +108,7 @@ class TestCoverageGate:
     def test_the_real_eleven_branch_spec_refuses_this_small_set(self, dataset: Dataset) -> None:
         """The shipped spec wants 30 per branch across 11 branches. A nine-case
         set is not a suite, and the coverage check says so rather than running."""
-        from toolproof.evals.nextrole import ROUTING_SUITE
+        from neverempty.evals.nextrole import ROUTING_SUITE
 
         report = check_coverage(dataset.cases, ROUTING_SUITE)
         assert not report.ok

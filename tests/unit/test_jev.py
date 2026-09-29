@@ -16,13 +16,13 @@ from typing import Any
 
 import pytest
 
-from toolproof.judge.jev import (
+from neverempty.judge.jev import (
     DEFAULT_LABELS,
     JEV_FAMILY,
     MAX_OPTIONS,
     JevJudge,
 )
-from toolproof.judge.model import JudgeError
+from neverempty.judge.model import JudgeError
 
 
 class FakeJev:
@@ -58,7 +58,7 @@ class TestItIsAJudgeModel:
         assert payload["confidence"] == pytest.approx(0.91)
 
     async def test_it_satisfies_the_protocol_structurally(self) -> None:
-        from toolproof.judge.model import JudgeModel
+        from neverempty.judge.model import JudgeModel
 
         subject = judge({"label": "supported", "confidence": 0.5})
         assert isinstance(subject, JudgeModel)
@@ -105,7 +105,7 @@ class TestConfidenceIsRecorded:
         assert subject.confidences == [pytest.approx(0.9), pytest.approx(0.4)]
 
     async def test_the_recorded_confidences_feed_a_reliability_curve(self) -> None:
-        from toolproof.metrics.reliability import reliability_curve
+        from neverempty.metrics.reliability import reliability_curve
 
         subject = judge(*({"label": "supported", "confidence": 0.95},) * 4)
         for _ in range(4):
@@ -206,15 +206,17 @@ class TestCoreIsUntouched:
         dependency mandatory for anyone reading this module."""
         import sys
 
-        import toolproof.judge.jev  # noqa: F401
+        import neverempty.judge.jev  # noqa: F401
 
         loaded = [
-            name for name in sys.modules if name.startswith("jev") and name != "toolproof.judge.jev"
+            name
+            for name in sys.modules
+            if name.startswith("jev") and name != "neverempty.judge.jev"
         ]
         assert loaded == []
 
     def test_the_public_surface_does_not_export_it(self) -> None:
         """An unrun, unvalidated backend is not part of the promised API."""
-        import toolproof
+        import neverempty
 
-        assert "JevJudge" not in toolproof.__all__
+        assert "JevJudge" not in neverempty.__all__

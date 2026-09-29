@@ -1,4 +1,4 @@
-# toolproof documentation
+# neverempty documentation
 
 | Page | Read it when |
 | --- | --- |
@@ -9,7 +9,7 @@
 
 ## Reference
 
-- **Public API** — exactly what `toolproof/__init__.py` exports via `__all__`.
+- **Public API** — exactly what `neverempty/__init__.py` exports via `__all__`.
   Anything reachable but unnamed there is private and may change in any release.
 - **Trace schema** — [`schemas/trace.v1.json`](../schemas/trace.v1.json),
   generated from the pydantic models and committed. An agent in any language that

@@ -494,7 +494,7 @@
       "type": "object"
     }
   },
-  "$id": "https://github.com/priyank-agrawal/toolproof/blob/main/schemas/case.v1.json",
+  "$id": "https://github.com/priyank-agrawal/neverempty/blob/main/schemas/case.v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "One dataset line. Unknown keys are rejected: a typo in eval data is a silent killer, because a misspelled expectation is an absent one, and an absent expectation reports not-applicable rather than failing.",
@@ -565,6 +565,6 @@
     "input",
     "expect"
   ],
-  "title": "toolproof Case v1",
+  "title": "neverempty Case v1",
   "type": "object"
 }

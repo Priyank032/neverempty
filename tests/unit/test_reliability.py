@@ -15,7 +15,7 @@ from typing import ClassVar
 
 import pytest
 
-from toolproof.metrics.reliability import (
+from neverempty.metrics.reliability import (
     BUCKET_COUNT,
     Bucket,
     ReliabilityCurve,

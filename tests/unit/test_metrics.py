@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof import CaseOutcome, Score
-from toolproof.metrics.aggregate import (
+from neverempty import CaseOutcome, Score
+from neverempty.metrics.aggregate import (
     CONFUSION_UNSCORED,
     build_confusion,
     build_metrics,

@@ -17,10 +17,10 @@ from typing import Any
 
 import pytest
 
-from toolproof import Case, Dataset, PreflightError, Runner, Tracer, scorers
-from toolproof.judge.judge import ClaimJudge
-from toolproof.judge.model import JudgeError, ScriptedJudge
-from toolproof.tracer.sinks import MemorySink
+from neverempty import Case, Dataset, PreflightError, Runner, Tracer, scorers
+from neverempty.judge.judge import ClaimJudge
+from neverempty.judge.model import JudgeError, ScriptedJudge
+from neverempty.tracer.sinks import MemorySink
 
 
 def verdict(label: str) -> str:
@@ -129,7 +129,7 @@ class TestFamilyPreflight:
         """A run that could email a real recruiter must not be allowed to fail on
         a judge misconfiguration instead: the side-effect check is the one that
         prevents real-world harm."""
-        from toolproof.core.stubs import register_side_effect
+        from neverempty.core.stubs import register_side_effect
 
         register_side_effect("send_gmail")
         judge = make_judge(verdict("supported"))

@@ -14,14 +14,14 @@ from typing import Any
 
 import pytest
 
-from toolproof import MemorySink, Tracer
+from neverempty import MemorySink, Tracer
 
 pytest.importorskip("langgraph")
 pytest.importorskip("langchain_core")
 
 from examples.fixture_agent import BRANCHES, build_orchestrator, execution_log
 
-from toolproof.integrations.langgraph import RouteProbeError, route_probe
+from neverempty.integrations.langgraph import RouteProbeError, route_probe
 
 pytestmark = pytest.mark.integration
 
@@ -280,10 +280,10 @@ class TestMissingExtra:
 
         monkeypatch.setattr(builtins, "__import__", fake_import)
 
-        from toolproof.integrations import langgraph as module
+        from neverempty.integrations import langgraph as module
 
         monkeypatch.setattr(module, "_LANGGRAPH", None)
-        with pytest.raises(ImportError, match=r"toolproof\[langgraph\]"):
+        with pytest.raises(ImportError, match=r"neverempty\[langgraph\]"):
             module.route_probe(object(), branch_nodes=["a"])
 
 
@@ -303,20 +303,20 @@ class TestSyncAndHelpers:
         assert result.next_node == result.route == "job_search"
 
     def test_assert_branches_exist_passes_on_a_correct_list(self) -> None:
-        from toolproof.integrations.langgraph import assert_branches_exist
+        from neverempty.integrations.langgraph import assert_branches_exist
 
         assert_branches_exist(build_orchestrator(), BRANCHES)
 
     def test_assert_branches_exist_fails_on_a_renamed_branch(self) -> None:
         """This is the target adapter's import-time guard."""
-        from toolproof.integrations.langgraph import assert_branches_exist
+        from neverempty.integrations.langgraph import assert_branches_exist
 
         with pytest.raises(RouteProbeError) as exc:
             assert_branches_exist(build_orchestrator(), ["job_search", "renamed"])
         assert "renamed" in str(exc.value)
 
     def test_a_graph_without_nodes_is_rejected_clearly(self) -> None:
-        from toolproof.integrations.langgraph import assert_branches_exist
+        from neverempty.integrations.langgraph import assert_branches_exist
 
         with pytest.raises(RouteProbeError, match="uncompiled"):
             assert_branches_exist(object(), ["a"])
@@ -335,6 +335,6 @@ class TestSyncAndHelpers:
         assert result.state["intent"] == "job_search"
 
     def test_a_compiled_graph_is_also_readable_for_the_branch_check(self) -> None:
-        from toolproof.integrations.langgraph import assert_branches_exist
+        from neverempty.integrations.langgraph import assert_branches_exist
 
         assert_branches_exist(build_orchestrator().compile(), BRANCHES)

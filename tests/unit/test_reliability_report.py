@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof.metrics.reliability import curve_from_outcomes, reliability_curve
-from toolproof.report.render import render_reliability
-from toolproof.report.report import CaseOutcome, Score
+from neverempty.metrics.reliability import curve_from_outcomes, reliability_curve
+from neverempty.report.render import render_reliability
+from neverempty.report.report import CaseOutcome, Score
 
 
 def outcome(

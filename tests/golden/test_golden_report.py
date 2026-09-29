@@ -22,8 +22,8 @@ from pathlib import Path
 
 import pytest
 
-from toolproof import Case, Dataset, Runner, Tracer, scorers
-from toolproof.tracer.sinks import MemorySink
+from neverempty import Case, Dataset, Runner, Tracer, scorers
+from neverempty.tracer.sinks import MemorySink
 
 GOLDEN = Path(__file__).parent / "report.golden.json"
 
@@ -184,7 +184,7 @@ def generate(tmp_path: Path) -> str:
         suite_version=1,
         config_hash="0" * 64,
         env_overrides={
-            "toolproof_version": "0.0.1-golden",
+            "neverempty_version": "0.0.1-golden",
             "python_version": "3.12.0",
             "target_git_sha": "abc1234",
         },
@@ -242,7 +242,7 @@ class TestGoldenReport:
     def test_the_golden_report_loads_back_into_the_model(self) -> None:
         """A committed report has to survive a round trip, or an older report
         stops being readable by a later version."""
-        from toolproof import Report
+        from neverempty import Report
 
         report = Report.model_validate_json(GOLDEN.read_text(encoding="utf-8"))
         assert report.suite == "golden.suite"
@@ -330,8 +330,8 @@ class TestGoldenRendering:
     def test_the_rendered_markdown_matches_its_golden_file(self) -> None:
         """The renderer has its own golden, because a README table is generated
         from it and a silent formatting change would rewrite published text."""
-        from toolproof import Report
-        from toolproof.report.render import render_markdown
+        from neverempty import Report
+        from neverempty.report.render import render_markdown
 
         golden_md = GOLDEN.parent / "report.golden.md"
         report = Report.model_validate_json(GOLDEN.read_text(encoding="utf-8"))

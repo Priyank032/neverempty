@@ -2,18 +2,18 @@
 
 Two files to copy into the `govt-benefits-finder` repo, both under `scripts/`:
 
-- `toolproof-export.js` — runs personas through `ruleEvaluator` and the rerank
+- `neverempty-export.js` — runs personas through `ruleEvaluator` and the rerank
   function in-process and writes Trace v1 JSONL.
-- `toolproof-export.test.js` — exercises the pure parts against the real rule
+- `neverempty-export.test.js` — exercises the pure parts against the real rule
   engine and scheme files. No LLM, no database, no network.
 
-They live here rather than in that repo so toolproof ships them with tests it
+They live here rather than in that repo so neverempty ships them with tests it
 runs itself; nothing in `govt-benefits-finder` is modified until you copy them.
 
 ## Running
 
 ```bash
-node scripts/toolproof-export.js \
+node scripts/neverempty-export.js \
   --personas tests/personas.js \
   --schemes data/schemes \
   --out evals/yojanakhoj/ \
@@ -21,13 +21,13 @@ node scripts/toolproof-export.js \
   --no-cache \
   --repeat 3
 
-node scripts/toolproof-export.test.js
+node scripts/neverempty-export.test.js
 ```
 
 Then, on the Python side:
 
 ```bash
-toolproof import evals/yojanakhoj/traces.jsonl \
+neverempty import evals/yojanakhoj/traces.jsonl \
   --cases evals/yojanakhoj/cases.jsonl
 ```
 
@@ -89,7 +89,7 @@ real bug in this script before its tests ran:
 
 - `usage` and `cost` are required on every trace. Token counts stay `null` when
   the SDK did not report them, never `0`, which would price as free.
-- `env` requires `toolproof_version`, `pricing_version` and `python_version`.
+- `env` requires `neverempty_version`, `pricing_version` and `python_version`.
   The Node side prices nothing, so it names an unpriced table rather than
   inventing a version.
 - Trace-level `status` is `ok` | `target_error` | `timeout` | `budget_abort`. A

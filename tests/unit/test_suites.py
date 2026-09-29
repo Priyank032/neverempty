@@ -15,8 +15,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from toolproof.dataset.case import Case
-from toolproof.evals.suites import (
+from neverempty.dataset.case import Case
+from neverempty.evals.suites import (
     MIN_PER_BRANCH,
     SuiteSpec,
     branch_coverage,

@@ -54,10 +54,10 @@ jobs:
       # Runs with no credentials: validation is pure and must stay that way, so
       # a broken dataset is caught before anything is spent.
       - name: Validate cases and split hashes
-        run: uv run toolproof validate evals/toolproof.toml
+        run: uv run neverempty validate evals/neverempty.toml
 
       - name: Report suite coverage
-        run: uv run toolproof coverage evals/toolproof.toml --format markdown >> "$GITHUB_STEP_SUMMARY"
+        run: uv run neverempty coverage evals/neverempty.toml --format markdown >> "$GITHUB_STEP_SUMMARY"
 
   run:
     name: run suites and gate
@@ -98,15 +98,15 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
           NEXTROLE_GRAPH_FACTORY: app.agents.graph:build_orchestrator
-          TOOLPROOF_MODE: ${{ inputs.mode || 'replay' }}
+          NEVEREMPTY_MODE: ${{ inputs.mode || 'replay' }}
         run: |
-          uv run toolproof run evals/toolproof.toml \
-            --mode "$TOOLPROOF_MODE" \
+          uv run neverempty run evals/neverempty.toml \
+            --mode "$NEVEREMPTY_MODE" \
             --out evals/reports/candidate.json
 
       - name: Render the report into the job summary
         if: always()
-        run: uv run toolproof render evals/reports/candidate.json >> "$GITHUB_STEP_SUMMARY"
+        run: uv run neverempty render evals/reports/candidate.json >> "$GITHUB_STEP_SUMMARY"
 
       # The gate's exit code is the job's result, unchanged. The one exception
       # is a baseline that does not exist yet: the first run of a new suite has
@@ -121,11 +121,11 @@ jobs:
               echo "No baseline at $baseline yet, so there is nothing to"
               echo "compare against. Promote this run to become one:"
               echo ""
-              echo '    toolproof baseline promote evals/reports/candidate.json'
+              echo '    neverempty baseline promote evals/reports/candidate.json'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          uv run toolproof gate \
+          uv run neverempty gate \
             "$baseline" \
             evals/reports/candidate.json \
             --format markdown >> "$GITHUB_STEP_SUMMARY"

@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from toolproof import Pricing
-from toolproof.core.trace import Usage
-from toolproof.tracer.pricing import ModelPrice
+from neverempty import Pricing
+from neverempty.core.trace import Usage
+from neverempty.tracer.pricing import ModelPrice
 
 
 def table() -> Pricing:

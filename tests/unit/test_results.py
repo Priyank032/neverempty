@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from toolproof import Empty, Err, Ok, ToolResult
+from neverempty import Empty, Err, Ok, ToolResult
 
 
 def _roundtrip(result: ToolResult[Any]) -> dict[str, Any]:
@@ -230,7 +230,7 @@ class TestTypeAliasUsability:
         """A field typed this way dispatches on ``status``, not by trial parsing."""
         from pydantic import BaseModel
 
-        from toolproof import AnyToolResult
+        from neverempty import AnyToolResult
 
         class Holder(BaseModel):
             result: AnyToolResult
@@ -249,7 +249,7 @@ class TestTypeAliasUsability:
     def test_an_unknown_status_is_rejected_by_the_union(self) -> None:
         from pydantic import BaseModel, ValidationError
 
-        from toolproof import AnyToolResult
+        from neverempty import AnyToolResult
 
         class Holder(BaseModel):
             result: AnyToolResult

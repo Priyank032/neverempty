@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from toolproof import (
+from neverempty import (
     Case,
     Dataset,
     MemorySink,
@@ -29,7 +29,7 @@ from toolproof import (
     Tracer,
     tool,
 )
-from toolproof.runner.runner import PreflightError
+from neverempty.runner.runner import PreflightError
 
 from .test_dataset import case_dict, write_jsonl
 
@@ -315,7 +315,7 @@ class TestBudget:
         assert result.status == "ok"
 
     async def test_a_budget_abort_still_writes_a_valid_report(self, tmp_path: Path) -> None:
-        from toolproof import Report
+        from neverempty import Report
 
         result = await build(max_cost_usd=0.0, _force_cost=1.0).run(dataset(tmp_path, 3))
         path = tmp_path / "report.json"
@@ -395,7 +395,7 @@ import asyncio, json, sys
 from pathlib import Path
 sys.path.insert(0, {str(Path.cwd() / "src")!r})
 sys.path.insert(0, {str(Path.cwd())!r})
-from toolproof import Case, Dataset, MemorySink, Score, Tracer, Runner
+from neverempty import Case, Dataset, MemorySink, Score, Tracer, Runner
 
 tmp = Path({str(tmp_path)!r})
 case = {{
@@ -431,7 +431,7 @@ class TestDuplicateIds:
     """Row: validation error before any execution."""
 
     async def test_duplicate_ids_fail_before_the_target_runs(self, tmp_path: Path) -> None:
-        from toolproof import DatasetError
+        from neverempty import DatasetError
 
         calls: list[str] = []
 
@@ -448,7 +448,7 @@ class TestReplayCacheMiss:
     """Row: hard error naming the missing key; replay never calls a provider."""
 
     async def test_a_replay_miss_is_a_hard_error_naming_the_key(self, tmp_path: Path) -> None:
-        from toolproof.runner.cache import CacheMissError, ResponseCache
+        from neverempty.runner.cache import CacheMissError, ResponseCache
 
         cache = ResponseCache(tmp_path / "cache", mode="replay")
         with pytest.raises(CacheMissError) as exc:
@@ -458,7 +458,7 @@ class TestReplayCacheMiss:
         assert len([part for part in message.split() if len(part) == 64]) == 1
 
     async def test_replay_returns_a_recorded_response(self, tmp_path: Path) -> None:
-        from toolproof.runner.cache import ResponseCache
+        from neverempty.runner.cache import ResponseCache
 
         key = {"provider": "openai", "model": "gpt-4o", "messages": [{"role": "user"}]}
         recorder = ResponseCache(tmp_path / "cache", mode="record")
@@ -471,7 +471,7 @@ class TestReplayCacheMiss:
         assert entry.usage == {"input_tokens": 5, "output_tokens": 2}
 
     async def test_record_mode_reports_a_miss_without_raising(self, tmp_path: Path) -> None:
-        from toolproof.runner.cache import ResponseCache
+        from neverempty.runner.cache import ResponseCache
 
         cache = ResponseCache(tmp_path / "cache", mode="record")
         assert cache.get({"provider": "openai", "messages": []}) is None
@@ -548,7 +548,7 @@ class TestConcurrency:
 
 class TestFaultInjection:
     async def test_declared_faults_are_applied_for_the_case(self, tmp_path: Path) -> None:
-        from toolproof import Err
+        from neverempty import Err
 
         seen: list[Any] = []
 
@@ -583,7 +583,7 @@ class TestSideEffectPreflight:
     async def test_the_runner_refuses_to_start_with_an_unstubbed_side_effect_tool(
         self, tmp_path: Path
     ) -> None:
-        from toolproof.core.tool import clear_side_effect_registry, register_side_effect
+        from neverempty.core.tool import clear_side_effect_registry, register_side_effect
 
         clear_side_effect_registry()
         register_side_effect("send_gmail")
@@ -595,7 +595,7 @@ class TestSideEffectPreflight:
             clear_side_effect_registry()
 
     async def test_a_stubbed_side_effect_tool_passes_preflight(self, tmp_path: Path) -> None:
-        from toolproof.core.tool import clear_side_effect_registry, register_side_effect
+        from neverempty.core.tool import clear_side_effect_registry, register_side_effect
 
         clear_side_effect_registry()
         register_side_effect("send_gmail")
@@ -608,7 +608,7 @@ class TestSideEffectPreflight:
             clear_side_effect_registry()
 
     async def test_nothing_runs_when_preflight_fails(self, tmp_path: Path) -> None:
-        from toolproof.core.tool import clear_side_effect_registry, register_side_effect
+        from neverempty.core.tool import clear_side_effect_registry, register_side_effect
 
         calls: list[str] = []
 
@@ -625,7 +625,7 @@ class TestSideEffectPreflight:
             clear_side_effect_registry()
 
     async def test_a_stub_replaces_the_real_tool_body(self, tmp_path: Path) -> None:
-        from toolproof import stub_scope
+        from neverempty import stub_scope
 
         called = False
 
@@ -766,7 +766,7 @@ class TestResume:
         assert keys == sorted(keys)
 
     async def test_resume_loads_a_partial_report_from_disk(self, tmp_path: Path) -> None:
-        from toolproof import Report
+        from neverempty import Report
 
         async def interrupt(case: Case, tracer: Tracer) -> None:
             if case.id == "c-0002":
@@ -794,7 +794,7 @@ class TestEnvBlock:
             env_overrides={"target_git_sha": "a" * 40, "prompt_hashes": {"P": "b" * 64}}
         ).run(dataset(tmp_path, 1))
 
-        assert result.env.toolproof_version
+        assert result.env.neverempty_version
         assert result.env.target_git_sha == "a" * 40
         assert result.env.prompt_hashes["P"] == "b" * 64
         assert result.env.pricing_version

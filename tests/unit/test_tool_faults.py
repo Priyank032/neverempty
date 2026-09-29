@@ -14,8 +14,8 @@ import asyncio
 
 import pytest
 
-from toolproof import Empty, Err, Ok, tool
-from toolproof.core.faults import FaultSpec, fault_scope
+from neverempty import Empty, Err, Ok, tool
+from neverempty.core.faults import FaultSpec, fault_scope
 
 
 class TestInjectedFaultsPreventTheRealCall:

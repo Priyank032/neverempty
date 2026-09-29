@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 While the version is below 1.0.0, the public API may change in any minor
-release. The public API is exactly what `toolproof/__init__.py` exports via
+release. The public API is exactly what `neverempty/__init__.py` exports via
 `__all__`; nothing else is public. The trace and case JSON Schemas are
 versioned independently of the package.
 
@@ -20,15 +20,15 @@ The library is complete against the design doc. What it does **not** yet carry
 is measured results for the two dogfood agents: those need hand-written ground
 truth (330 routing labels, ~33 fault labels, ~60 judge labels), and a label
 written by a model would make every published number a measure of one model
-agreeing with another. `toolproof coverage` refuses to run a suite until they
+agreeing with another. `neverempty coverage` refuses to run a suite until they
 exist, and the README's Numbers section is generated from committed reports, so
 it stays empty rather than carrying a placeholder.
 
 ### Added
-- `toolproof.evals`: the eval harness. `SuiteSpec` and `check_coverage` refuse a
+- `neverempty.evals`: the eval harness. `SuiteSpec` and `check_coverage` refuse a
   suite that cannot support its own numbers — an empty split, a branch below the
   per-branch floor, or a label naming a route the agent cannot produce.
-  `toolproof coverage` exits non-zero on any of those, so an unlabelled suite
+  `neverempty coverage` exits non-zero on any of those, so an unlabelled suite
   fails CI rather than publishing a rate over an empty denominator. This
   library's own headline rule, applied to its own dataset.
 - `NextRoleAdapter`: routing cases go through `route_probe` (zero branch
@@ -57,7 +57,7 @@ it stays empty rather than carrying a placeholder.
   `llm_confidence` to either a rescaled ranking score or a hardcoded constant;
   scoring that text would measure the fallback string, and scoring that number as
   a confidence would measure the score function.
-- `toolproof import`: validates Trace v1 JSONL from another language and refuses
+- `neverempty import`: validates Trace v1 JSONL from another language and refuses
   an export that cannot prove the match cache was bypassed, or whose LLM error
   rate is above 10%. A cached run can serve one persona an explanation written
   for another in the same age and income bucket, which contaminates exactly the
@@ -70,10 +70,10 @@ it stays empty rather than carrying a placeholder.
   JSON the text judge's parser reads so the parser, the retries and the cache are
   shared rather than duplicated. Not run and not endorsed: access is waitlisted
   and the vendor's calibration claim is a claim. It is deliberately absent from
-  `toolproof.__all__`, because an unrun, unvalidated backend is not part of the
+  `neverempty.__all__`, because an unrun, unvalidated backend is not part of the
   promised API. Every confidence it sees is recorded, so the reliability curve
   can settle the calibration question with data.
-- `toolproof readme`: renders the published-numbers table from committed reports
+- `neverempty readme`: renders the published-numbers table from committed reports
   and `--check` fails CI on drift. Judge-derived numbers are cut below kappa 0.6,
   and an unmeasured kappa is not a passing one. An incomplete run publishes
   nothing and is named under "Not published".
@@ -142,7 +142,7 @@ it stays empty rather than carrying a placeholder.
   Reordering or reformatting the file leaves it unchanged; editing, adding or
   deleting a test case changes it. Dev cases are excluded, since tuning on dev
   is allowed and must not invalidate a baseline.
-- `toolproof validate`: schema, id uniqueness and split-hash checking, with
+- `neverempty validate`: schema, id uniqueness and split-hash checking, with
   `--expect-split-hash` for CI, `--json` for machines, and a non-zero exit when
   a glob matches nothing, so an empty match never reads as a pass.
 - `schemas/case.v1.json`, generated and committed alongside the trace schema.
@@ -262,7 +262,7 @@ it stays empty rather than carrying a placeholder.
   committed report. It prints "not measured" for `applicable=0`, suppresses
   percentages below n=10 while still showing the counts, and labels anything
   below n=50 indicative.
-- `toolproof.toml` loader: strict, so an unknown key is an error. A misspelled
+- `neverempty.toml` loader: strict, so an unknown key is an error. A misspelled
   `max_cost_usd` that loaded silently would remove the budget cap from a live
   run. The design doc's own config file loads unchanged, and `config_hash()` is
   over the parsed values so reformatting does not read as a change.
@@ -292,7 +292,7 @@ it stays empty rather than carrying a placeholder.
   namespace without declaring `protected_namespaces=()`. pydantic warns on such
   a field, this project turns warnings into errors, and the warning fires on
   some 2.x versions and not others — so on pydantic 2.9, well inside the
-  declared `>=2.7,<3` range, importing `toolproof` at all raised. The local
+  declared `>=2.7,<3` range, importing `neverempty` at all raised. The local
   suite stayed green because the pinned dev environment happened to use a
   version where it does not fire. A test now walks every model in the package
   and fails on any undeclared `model_*` field, so the next one cannot reach a
@@ -345,7 +345,7 @@ it stays empty rather than carrying a placeholder.
   them in as wrong labels would understate agreement and hide an outage.
 - Agreement is sliceable by language, so a failure in Hindi cannot hide behind
   English.
-- `toolproof judge calibrate`: prints kappa, the matrix, contradicted precision
+- `neverempty judge calibrate`: prints kappa, the matrix, contradicted precision
   and recall, per-language agreement and the injection tally. Exits 0 for a low
   kappa (a bad judge is a valid measurement) unless `--fail-below-threshold`.
 - A judge error rate above 2% makes the run `degraded`. A degraded run is still
@@ -395,7 +395,7 @@ it stays empty rather than carrying a placeholder.
 
 ### Deferred
 
-- `toolproof.langchain.wrap(base_tool)` is deferred past 0.1.0. The `@tool`
+- `neverempty.langchain.wrap(base_tool)` is deferred past 0.1.0. The `@tool`
   decorator and the LangChain callback handler already cover both authoring a
   tool and tracing one the framework invokes.
 
@@ -413,8 +413,8 @@ Name reservation and repository skeleton. No public API yet.
   plus a GitHub release rendered from this file.
 - Empty typed package that imports cleanly, ships `py.typed`, and depends only
   on pydantic v2.
-- `toolproof --version` console script.
+- `neverempty --version` console script.
 
-[Unreleased]: https://github.com/priyank-agrawal/toolproof/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/priyank-agrawal/toolproof/releases/tag/v0.1.0
-[0.0.1]: https://github.com/priyank-agrawal/toolproof/releases/tag/v0.0.1
+[Unreleased]: https://github.com/priyank-agrawal/neverempty/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/priyank-agrawal/neverempty/releases/tag/v0.1.0
+[0.0.1]: https://github.com/priyank-agrawal/neverempty/releases/tag/v0.0.1

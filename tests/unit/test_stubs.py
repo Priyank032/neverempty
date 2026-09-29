@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from toolproof import Empty, Err, MemorySink, Ok, Tracer, stub_scope, tool
-from toolproof.core.stubs import (
+from neverempty import Empty, Err, MemorySink, Ok, Tracer, stub_scope, tool
+from neverempty.core.stubs import (
     clear_side_effect_registry,
     find_stub,
     register_side_effect,
@@ -294,7 +294,7 @@ class TestStubTracing:
         assert span.attributes["tool.error_kind"] == "upstream"
 
     async def test_stub_arguments_are_redacted(self) -> None:
-        from toolproof import redact
+        from neverempty import redact
 
         sink = MemorySink()
         tracer = Tracer(sink=sink, redact=redact.keys("email"))

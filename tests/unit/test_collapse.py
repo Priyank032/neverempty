@@ -23,8 +23,8 @@ from collections.abc import Sequence
 
 import pytest
 
-from toolproof import Score
-from toolproof.scorers.collapse import COLLAPSE_RULES, collapse, collapse_rule
+from neverempty import Score
+from neverempty.scorers.collapse import COLLAPSE_RULES, collapse, collapse_rule
 
 
 def scores(*verdicts: bool | None, value: float | None = None) -> list[Score]:

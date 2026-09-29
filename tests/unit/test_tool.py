@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from toolproof import (
+from neverempty import (
     AmbiguousEmptyError,
     Empty,
     Err,
@@ -527,14 +527,14 @@ class TestSignaturePreservation:
         async def search_jobs() -> list[int]:
             return [1]
 
-        assert search_jobs.toolproof_name == "search_jobs"
+        assert search_jobs.neverempty_name == "search_jobs"
 
     def test_tool_name_is_overridable(self) -> None:
         @tool(name="search", never_empty=True)
         async def search_jobs() -> list[int]:
             return [1]
 
-        assert search_jobs.toolproof_name == "search"
+        assert search_jobs.neverempty_name == "search"
 
 
 class TestNoTracerRequired:
@@ -564,14 +564,14 @@ class TestSideEffectTag:
         async def t() -> int:
             return 1
 
-        assert t.toolproof_side_effect is False
+        assert t.neverempty_side_effect is False
 
     def test_side_effect_tag_is_recorded_for_runner_preflight(self) -> None:
         @tool(never_empty=True, side_effect=True)
         async def send_gmail() -> int:
             return 1
 
-        assert send_gmail.toolproof_side_effect is True
+        assert send_gmail.neverempty_side_effect is True
 
 
 class TestRetries:
@@ -700,7 +700,7 @@ class TestBackoff:
         assert t.__wrapped__ is not None
 
     def test_backoff_grows_and_stays_within_its_jitter_band(self) -> None:
-        from toolproof.core.tool import _ToolSpec
+        from neverempty.core.tool import _ToolSpec
 
         spec = _ToolSpec(
             name="t",
@@ -720,7 +720,7 @@ class TestBackoff:
             assert base * 0.5 <= delay <= base, f"attempt {attempt}: {delay}"
 
     def test_non_positive_backoff_never_sleeps(self) -> None:
-        from toolproof.core.tool import _ToolSpec
+        from neverempty.core.tool import _ToolSpec
 
         spec = _ToolSpec(
             name="t",
@@ -743,7 +743,7 @@ class TestDecoratorArgumentValidation:
             tool(retries=-1)
 
     def test_negative_after_calls_is_rejected(self) -> None:
-        from toolproof import FaultSpec
+        from neverempty import FaultSpec
 
         with pytest.raises(ValueError, match="after_calls"):
             FaultSpec(tool="t", kind="timeout", after_calls=-1)
@@ -779,7 +779,7 @@ class TestTruncatedFaultOnNonOk:
     async def test_a_truncated_fault_on_an_empty_result_flags_but_does_not_truncate(
         self,
     ) -> None:
-        from toolproof import FaultSpec, fault_scope
+        from neverempty import FaultSpec, fault_scope
 
         @tool(empty_when=lambda rows: len(rows) == 0)
         async def t() -> list[int]:

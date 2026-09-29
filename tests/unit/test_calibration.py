@@ -18,7 +18,7 @@ from typing import cast
 
 import pytest
 
-from toolproof.judge.calibration import (
+from neverempty.judge.calibration import (
     KAPPA_PUBLISH_THRESHOLD,
     CalibrationCase,
     CalibrationResult,
@@ -26,7 +26,7 @@ from toolproof.judge.calibration import (
     cohens_kappa,
     load_calibration,
 )
-from toolproof.judge.judge import JudgeLabel, VerdictLabel
+from neverempty.judge.judge import JudgeLabel, VerdictLabel
 
 
 def cases(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:

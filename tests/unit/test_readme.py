@@ -11,12 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from toolproof.report.readme import (
+from neverempty.report.readme import (
     NO_NUMBERS,
     load_reports,
     render_readme_numbers,
 )
-from toolproof.report.report import Metric, Report
+from neverempty.report.report import Metric, Report
 
 
 def report(
@@ -34,7 +34,7 @@ def report(
         "complete": complete,
         "status": status,
         "env": {
-            "toolproof_version": "0.1.0",
+            "neverempty_version": "0.1.0",
             "pricing_version": "openai-2026-09-01",
             "python_version": "3.12.10",
             "target_git_sha": "b" * 40,

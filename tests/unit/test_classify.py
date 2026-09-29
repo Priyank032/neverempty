@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-from toolproof import Err
-from toolproof.core.classify import classify, is_uncatchable
+from neverempty import Err
+from neverempty.core.classify import classify, is_uncatchable
 
 
 class ResponseLike:

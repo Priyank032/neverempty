@@ -21,15 +21,15 @@ from pathlib import Path
 
 import pytest
 
-from toolproof import CaseOutcome, Report, Score
-from toolproof.core.trace import Env
-from toolproof.report.gate import GateConfig, GateResult, compare, gate
-from toolproof.report.report import Costs, Latency
+from neverempty import CaseOutcome, Report, Score
+from neverempty.core.trace import Env
+from neverempty.report.gate import GateConfig, GateResult, compare, gate
+from neverempty.report.report import Costs, Latency
 
 
 def env(**overrides: object) -> Env:
     fields: dict[str, object] = {
-        "toolproof_version": "0.0.1",
+        "neverempty_version": "0.0.1",
         "pricing_version": "empty-2026-09-23",
         "python_version": "3.12.10",
         "resolved_models": ["gpt-4o-2024-08-06"],

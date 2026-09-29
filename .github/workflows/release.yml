@@ -71,8 +71,8 @@ jobs:
         run: |
           uv venv /tmp/rc
           VIRTUAL_ENV=/tmp/rc uv pip install dist/*.whl
-          /tmp/rc/bin/python -c "import toolproof; print(toolproof.__version__)"
-          /tmp/rc/bin/toolproof --version
+          /tmp/rc/bin/python -c "import neverempty; print(neverempty.__version__)"
+          /tmp/rc/bin/neverempty --version
 
       - uses: actions/upload-artifact@v4
         with:
@@ -87,7 +87,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/toolproof
+      url: https://test.pypi.org/p/neverempty
     permissions:
       id-token: write # OIDC only; no API token is stored anywhere
     steps:
@@ -110,7 +110,7 @@ jobs:
       # Add a manual reviewer on this environment in repo settings so a tag
       # push cannot publish without a human approving it.
       name: pypi
-      url: https://pypi.org/p/toolproof
+      url: https://pypi.org/p/neverempty
     permissions:
       id-token: write # trusted publishing: no PYPI_API_TOKEN secret exists
     steps:

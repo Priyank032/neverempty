@@ -49,7 +49,7 @@ absence would mislead a user, not on ordinary routing.
 ## Why the suite refuses to run
 
 ```
-$ toolproof validate evals/toolproof.toml
+$ neverempty coverage evals/neverempty.toml
 Suite nextrole.routing (test split): 0 case(s), 11 branch(es), minimum 30 per branch.
 
 | branch | cases | short by |

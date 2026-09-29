@@ -15,10 +15,10 @@ on one would make partial reports unreadable.
 
 from __future__ import annotations
 
-from toolproof import Metric, Report
-from toolproof.core.trace import Env
-from toolproof.report.gate import GateConfig, gate
-from toolproof.report.render import (
+from neverempty import Metric, Report
+from neverempty.core.trace import Env
+from neverempty.report.gate import GateConfig, gate
+from neverempty.report.render import (
     INDICATIVE_MIN_N,
     SUPPRESS_BELOW_N,
     render_gate,
@@ -28,7 +28,7 @@ from toolproof.report.render import (
 
 def env() -> Env:
     return Env(
-        toolproof_version="0.0.1",
+        neverempty_version="0.0.1",
         pricing_version="empty-2026-09-23",
         python_version="3.12.10",
         target_git_sha="abc1234",
@@ -224,7 +224,7 @@ class TestReproducibilityBlock:
         assert "abc1234" in rendered
         assert "gpt-4o-2024-08-06" in rendered
 
-    def test_the_pricing_and_toolproof_versions_are_printed(self) -> None:
+    def test_the_pricing_and_neverempty_versions_are_printed(self) -> None:
         rendered = render_markdown(report())
         assert "empty-2026-09-23" in rendered
         assert "0.0.1" in rendered
@@ -240,7 +240,7 @@ class TestReproducibilityBlock:
         """Silence would read as "clean checkout" rather than "not recorded"."""
         bare = report(
             env=Env(
-                toolproof_version="0.0.1",
+                neverempty_version="0.0.1",
                 pricing_version="empty-2026-09-23",
                 python_version="3.12.10",
             )
@@ -253,7 +253,7 @@ class TestReproducibilityBlock:
         report must say so rather than look clean."""
         dirty = report(
             env=Env(
-                toolproof_version="0.0.1",
+                neverempty_version="0.0.1",
                 pricing_version="empty-2026-09-23",
                 python_version="3.12.10",
                 target_git_sha="abc1234",
@@ -391,7 +391,7 @@ class TestRenderGate:
     def test_an_inconclusive_gate_says_rerun_rather_than_regression(self) -> None:
         """The doc is explicit that code 3 must not be misread as a quality
         regression, so the rendered text has to distinguish them."""
-        from toolproof.report.gate import GateResult
+        from neverempty.report.gate import GateResult
 
         result = GateResult(
             verdict="inconclusive",
@@ -406,7 +406,7 @@ class TestRenderGate:
     def test_an_invalid_gate_is_labelled_infrastructure(self) -> None:
         """Code 4 is an infrastructure failure and the doc requires it labelled
         as such, so nobody reads it as the agent getting worse."""
-        from toolproof.report.gate import GateResult
+        from neverempty.report.gate import GateResult
 
         result = GateResult(
             verdict="invalid",
@@ -417,7 +417,7 @@ class TestRenderGate:
         assert "infrastructure" in rendered or "invalid input" in rendered
 
     def test_the_mcnemar_counts_are_rendered(self) -> None:
-        from toolproof.report.gate import GateResult, McNemarDTO
+        from neverempty.report.gate import GateResult, McNemarDTO
 
         result = GateResult(
             verdict="regression",
@@ -430,7 +430,7 @@ class TestRenderGate:
         assert "0.0059" in rendered or "0.006" in rendered
 
     def test_warnings_are_rendered_separately_from_the_verdict(self) -> None:
-        from toolproof.report.gate import GateResult
+        from neverempty.report.gate import GateResult
 
         result = GateResult(
             verdict="pass",

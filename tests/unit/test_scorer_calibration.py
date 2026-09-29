@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof.dataset.case import Case
-from toolproof.runner.runner import ScorerError
-from toolproof.scorers.calibration import (
+from neverempty.dataset.case import Case
+from neverempty.runner.runner import ScorerError
+from neverempty.scorers.calibration import (
     CONFIDENCE_KEYS,
     CalibrationScorer,
     calibration,

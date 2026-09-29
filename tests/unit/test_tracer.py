@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from toolproof import (
+from neverempty import (
     Empty,
     Err,
     JsonlSink,
@@ -222,7 +222,7 @@ class TestToolSpanAttributes:
         assert attrs["tool.retryable"] is True
 
     async def test_an_injected_fault_is_flagged_on_the_span(self) -> None:
-        from toolproof import FaultSpec, fault_scope
+        from neverempty import FaultSpec, fault_scope
 
         tracer, sink = build()
 
@@ -638,7 +638,7 @@ class TestSinkFailures:
                 raise OSError("disk full")
 
         tracer = Tracer(sink=Broken())
-        with caplog.at_level(logging.ERROR, logger="toolproof.tracer"):
+        with caplog.at_level(logging.ERROR, logger="neverempty.tracer"):
             async with tracer.run():
                 pass
         assert any("disk full" in record.getMessage() for record in caplog.records)
@@ -665,7 +665,7 @@ class TestJsonlSink:
         assert [json.loads(line)["case_id"] for line in lines] == ["c0", "c1", "c2"]
 
     async def test_every_line_validates_against_the_trace_model(self, tmp_path: Path) -> None:
-        from toolproof import Trace
+        from neverempty import Trace
 
         tracer = Tracer(sink=JsonlSink(tmp_path))
 
@@ -710,13 +710,13 @@ class TestJsonlSink:
 
 
 class TestEnvBlock:
-    async def test_the_toolproof_version_is_recorded(self) -> None:
-        from toolproof import __version__
+    async def test_the_neverempty_version_is_recorded(self) -> None:
+        from neverempty import __version__
 
         tracer, sink = build()
         async with tracer.run():
             pass
-        assert sink.traces[0].env.toolproof_version == __version__
+        assert sink.traces[0].env.neverempty_version == __version__
 
     async def test_the_python_version_is_recorded(self) -> None:
         import sys
@@ -800,7 +800,7 @@ class TestOverhead:
 
 class TestTracedFaultsAndCancellation:
     async def test_an_injected_empty_fault_produces_an_empty_span(self) -> None:
-        from toolproof import FaultSpec, fault_scope
+        from neverempty import FaultSpec, fault_scope
 
         tracer, sink = build()
 
@@ -850,7 +850,7 @@ class TestTracedFaultsAndCancellation:
         assert len(sink.traces[0].spans) == 1
 
     async def test_an_ambiguous_empty_closes_its_span_before_raising(self) -> None:
-        from toolproof import AmbiguousEmptyError
+        from neverempty import AmbiguousEmptyError
 
         tracer, sink = build()
 
@@ -992,7 +992,7 @@ class TestArgumentBinding:
         assert args["radius"] == 25
 
     def test_unbindable_arguments_fall_back_to_positional_names(self) -> None:
-        from toolproof.core.tracing import bind_arguments
+        from neverempty.core.tracing import bind_arguments
 
         def f(a: int) -> int:
             return a

@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from toolproof.schemas import SCHEMA_FILES, generate_schemas, write_schemas
+from neverempty.schemas import SCHEMA_FILES, generate_schemas, write_schemas
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = REPO_ROOT / "schemas"
@@ -158,7 +158,7 @@ class TestCaseSchemaContract:
     ) -> None:
         jsonschema = pytest.importorskip("jsonschema")
 
-        from toolproof import Case
+        from neverempty import Case
 
         case = Case.model_validate(
             {
@@ -203,7 +203,7 @@ class TestGeneratedSchemaValidatesRealTraces:
 
         import asyncio
 
-        from toolproof import MemorySink, Tracer, tool
+        from neverempty import MemorySink, Tracer, tool
 
         @tool(never_empty=True)
         async def search_jobs(city: str) -> list[int]:

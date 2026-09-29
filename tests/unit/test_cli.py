@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof import __version__
-from toolproof.cli import build_parser, main
+from neverempty import __version__
+from neverempty.cli import build_parser, main
 
 
 def test_help_exits_zero_and_names_the_program(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert main([]) == 0
-    assert "toolproof" in capsys.readouterr().out
+    assert "neverempty" in capsys.readouterr().out
 
 
 def test_version_flag_prints_the_package_version(
@@ -31,4 +31,4 @@ def test_unknown_argument_is_a_usage_error() -> None:
 
 
 def test_parser_is_constructible_standalone() -> None:
-    assert build_parser().prog == "toolproof"
+    assert build_parser().prog == "neverempty"

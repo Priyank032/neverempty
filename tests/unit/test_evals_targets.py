@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof.core.results import Ok
-from toolproof.evals.nextrole import SIDE_EFFECT_TOOLS
-from toolproof.evals.targets import STUBS, RecordingStub, run_nextrole
+from neverempty.core.results import Ok
+from neverempty.evals.nextrole import SIDE_EFFECT_TOOLS
+from neverempty.evals.targets import STUBS, RecordingStub, run_nextrole
 
 
 class TestRecordingStub:
@@ -73,15 +73,15 @@ class TestStubs:
 class TestEntrypoint:
     async def test_without_the_env_var_it_says_what_to_set(self) -> None:
         """A missing agent repo is a setup problem with an obvious fix, and must
-        not read as a toolproof bug."""
-        from toolproof.evals import targets
+        not read as a neverempty bug."""
+        from neverempty.evals import targets
 
         targets._adapter = None
         with pytest.raises(RuntimeError, match="NEXTROLE_GRAPH_FACTORY"):
             await run_nextrole(object(), object())  # type: ignore[arg-type]
 
     async def test_a_malformed_spec_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from toolproof.evals import targets
+        from neverempty.evals import targets
 
         targets._adapter = None
         monkeypatch.setenv("NEXTROLE_GRAPH_FACTORY", "no_colon_here")
@@ -89,7 +89,7 @@ class TestEntrypoint:
             await run_nextrole(object(), object())  # type: ignore[arg-type]
 
     async def test_a_missing_attribute_is_named(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from toolproof.evals import targets
+        from neverempty.evals import targets
 
         targets._adapter = None
         monkeypatch.setenv("NEXTROLE_GRAPH_FACTORY", "json:not_a_thing")
@@ -97,7 +97,7 @@ class TestEntrypoint:
             await run_nextrole(object(), object())  # type: ignore[arg-type]
 
     async def test_a_non_callable_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from toolproof.evals import targets
+        from neverempty.evals import targets
 
         targets._adapter = None
         monkeypatch.setenv("NEXTROLE_GRAPH_FACTORY", "json:__doc__")
@@ -105,9 +105,9 @@ class TestEntrypoint:
             await run_nextrole(object(), object())  # type: ignore[arg-type]
 
     def test_importing_targets_needs_no_agent_repo(self) -> None:
-        """toolproof's own tests, wheel build and ``validate`` must all work
+        """neverempty's own tests, wheel build and ``validate`` must all work
         without ai-career-copilot on the path."""
         import importlib
 
-        module = importlib.import_module("toolproof.evals.targets")
+        module = importlib.import_module("neverempty.evals.targets")
         assert module.run_nextrole is not None

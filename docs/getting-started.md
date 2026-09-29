@@ -6,8 +6,8 @@ Every command and output below was run against the version in this repository.
 ## Install
 
 ```bash
-git clone https://github.com/priyank-agrawal/toolproof
-cd toolproof
+git clone https://github.com/priyank-agrawal/neverempty
+cd neverempty
 pip install -e .
 ```
 
@@ -29,7 +29,7 @@ The bug this library exists to prevent is a tool that fails, returns `[]`, and
 gets read as "no data exists". So the first thing to change is the tool.
 
 ```python
-from toolproof import tool
+from neverempty import tool
 
 
 @tool(empty_when=lambda rows: rows == [])
@@ -91,8 +91,8 @@ The tracer uses `contextvars`, so a `@tool` call nested inside a graph node
 inside a run gets the right parents with no plumbing:
 
 ```python
-from toolproof import Tracer
-from toolproof.tracer.sinks import JsonlSink
+from neverempty import Tracer
+from neverempty.tracer.sinks import JsonlSink
 
 tracer = Tracer(sink=JsonlSink("traces.jsonl"))
 
@@ -122,7 +122,7 @@ One JSON object per line. Labels go in before you run the agent — see
 ```
 
 ```bash
-toolproof validate demo.jsonl
+neverempty validate demo.jsonl
 ```
 
 Validation names every bad line with its line number, rejects duplicate ids, and
@@ -133,8 +133,8 @@ prints the test-split hash. Editing a hashed test split requires bumping
 
 ```python
 import asyncio
-from toolproof import Dataset, Runner, Tracer, scorers
-from toolproof.tracer.sinks import JsonlSink
+from neverempty import Dataset, Runner, Tracer, scorers
+from neverempty.tracer.sinks import JsonlSink
 
 
 async def run_agent(case, tracer):
@@ -162,7 +162,7 @@ report = asyncio.run(runner.run(dataset))
 Or, with a config file, the same run is one command:
 
 ```bash
-toolproof run evals/toolproof.toml --out evals/reports/candidate.json
+neverempty run evals/neverempty.toml --out evals/reports/candidate.json
 ```
 
 That reads `[target].entrypoint`, builds the scorers each suite names, and writes
@@ -197,7 +197,7 @@ went wrong" to everything scores a perfect misreport rate.
 ## Step 7: gate in CI
 
 ```bash
-toolproof gate baseline.json candidate.json
+neverempty gate baseline.json candidate.json
 ```
 
 | Exit | Meaning |

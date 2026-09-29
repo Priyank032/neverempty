@@ -21,14 +21,14 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof.judge.judge import (
+from neverempty.judge.judge import (
     EXTRACTION_PROMPT_VERSION,
     VERIFICATION_PROMPT_VERSION,
     Claim,
     ClaimJudge,
     Verdict,
 )
-from toolproof.judge.model import JudgeError, JudgeModel, ScriptedJudge
+from neverempty.judge.model import JudgeError, JudgeModel, ScriptedJudge
 
 
 def judge(model: JudgeModel, **kwargs: object) -> ClaimJudge:
@@ -122,12 +122,12 @@ class TestFamilyCheck:
         ],
     )
     def test_families_are_inferred_from_known_model_ids(self, model_id: str, family: str) -> None:
-        from toolproof.judge.judge import infer_family
+        from neverempty.judge.judge import infer_family
 
         assert infer_family(model_id) == family
 
     def test_an_unknown_id_infers_nothing_rather_than_guessing(self) -> None:
-        from toolproof.judge.judge import infer_family
+        from neverempty.judge.judge import infer_family
 
         assert infer_family("acme-internal-v3") is None
 
@@ -460,14 +460,14 @@ class TestCaching:
     async def test_a_prompt_version_change_invalidates_the_cache(self) -> None:
         """A cached verdict from an older prompt is a verdict about a different
         question, and reusing it would make the calibration a lie."""
-        from toolproof.judge.judge import verification_cache_key
+        from neverempty.judge.judge import verification_cache_key
 
         first = verification_cache_key(claim="c", evidence="e", prompt_version="v1", model_id="m")
         second = verification_cache_key(claim="c", evidence="e", prompt_version="v2", model_id="m")
         assert first != second
 
     async def test_a_model_change_invalidates_the_cache(self) -> None:
-        from toolproof.judge.judge import verification_cache_key
+        from neverempty.judge.judge import verification_cache_key
 
         first = verification_cache_key(
             claim="c", evidence="e", prompt_version="v1", model_id="claude"
@@ -549,7 +549,7 @@ class TestVerdictModel:
 
     def test_judge_error_is_a_distinct_label_from_the_three(self) -> None:
         """It must never be aggregated as if it were an opinion."""
-        from toolproof.judge.judge import JUDGE_LABELS
+        from neverempty.judge.judge import JUDGE_LABELS
 
         assert "judge_error" not in JUDGE_LABELS
         assert set(JUDGE_LABELS) == {"supported", "contradicted", "not_in_evidence"}

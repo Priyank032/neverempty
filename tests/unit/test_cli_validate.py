@@ -1,4 +1,4 @@
-"""``toolproof validate evals/**/*.jsonl``.
+"""``neverempty validate evals/**/*.jsonl``.
 
     schema + id uniqueness + split hash check
 
@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from toolproof.cli import main
+from neverempty.cli import main
 
 from .test_dataset import case_dict, write_jsonl
 
@@ -90,7 +90,7 @@ class TestReporting:
         """So it can be pasted into config as the recorded hash."""
         path = write_jsonl(tmp_path / "d.jsonl", [case_dict("c-0001", "test")])
         _, output = run(capsys, str(path))
-        from toolproof import Dataset
+        from neverempty import Dataset
 
         assert Dataset.load(path).split_hash() in output  # type: ignore[operator]
 
@@ -147,7 +147,7 @@ class TestHashVerification:
     def test_a_matching_expected_hash_passes(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        from toolproof import Dataset
+        from neverempty import Dataset
 
         path = write_jsonl(tmp_path / "d.jsonl", [case_dict("c-0001", "test")])
         digest = Dataset.load(path).split_hash()

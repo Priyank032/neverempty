@@ -1,10 +1,10 @@
-# toolproof
+# neverempty
 
 Evaluate and trace tool-calling LLM agents, with the one guarantee most
 harnesses miss: **a tool failure can never look like an empty result.**
 
 > **Status: 0.1.0, not yet on PyPI.** The library is complete and its public
-> API is the 71 names `toolproof/__init__.py` exports. What it does not yet
+> API is the 71 names `neverempty/__init__.py` exports. What it does not yet
 > carry is measured results for a real agent: those need hand-written labels,
 > and a label written by a model would make every published number a measure of
 > one model agreeing with another. Install from a clone until the release is
@@ -16,7 +16,7 @@ A tool times out. It returns `[]`. The model reads `[]`, concludes there is no
 data, and tells the user "there are no results for Q3". The user believes it.
 Nothing in the stack logged an error the user would ever see.
 
-toolproof makes that unrepresentable in three places at once:
+neverempty makes that unrepresentable in three places at once:
 
 - **The type.** A tool returns `Ok`, `Empty` or `Err` — a tagged union
   discriminated on `status`, never a bare value whose emptiness you have to
@@ -33,8 +33,8 @@ toolproof makes that unrepresentable in three places at once:
 Install from a clone (PyPI release pending):
 
 ```bash
-git clone https://github.com/priyank-agrawal/toolproof
-cd toolproof && pip install -e .
+git clone https://github.com/priyank-agrawal/neverempty
+cd neverempty && pip install -e .
 ```
 
 ### 1. A tool that cannot lie about being empty
@@ -44,7 +44,7 @@ plain value becomes `Empty` — falsiness is never inferred, because `0`, `False
 and `""` are legitimate values.
 
 ```python
-from toolproof import tool
+from neverempty import tool
 
 
 @tool(empty_when=lambda rows: rows == [])
@@ -113,9 +113,9 @@ whose expectation is absent reports **not applicable** — never a pass.
 
 ```python
 import asyncio
-from toolproof import Dataset, Runner, Tracer, gate, render_markdown, scorers
-from toolproof.report.gate import GateConfig
-from toolproof.tracer.sinks import JsonlSink
+from neverempty import Dataset, Runner, Tracer, gate, render_markdown, scorers
+from neverempty.report.gate import GateConfig
+from neverempty.tracer.sinks import JsonlSink
 
 dataset = Dataset.load("demo.jsonl")  # fails on any bad line, with line numbers
 
@@ -152,15 +152,15 @@ print a percentage below n=10, and labels anything below n=50 as indicative.
 ### 5. The CLI
 
 ```bash
-toolproof run evals/toolproof.toml         # run every suite the config declares
-toolproof validate evals/**/*.jsonl        # schema, duplicate ids, split hash
-toolproof coverage evals/toolproof.toml    # per-branch label backlog; non-zero if short
-toolproof compare base.json cand.json      # paired stats, markdown diff
-toolproof gate base.json cand.json         # exit 1 on a real regression
-toolproof render report.json               # markdown report
-toolproof import traces.jsonl --cases cases.jsonl   # traces from another language
-toolproof judge calibrate labels.jsonl     # kappa, 3x3 matrix, per-language slice
-toolproof readme evals/reports/*.json      # published numbers, linked to their reports
+neverempty run evals/neverempty.toml         # run every suite the config declares
+neverempty validate evals/**/*.jsonl        # schema, duplicate ids, split hash
+neverempty coverage evals/neverempty.toml    # per-branch label backlog; non-zero if short
+neverempty compare base.json cand.json      # paired stats, markdown diff
+neverempty gate base.json cand.json         # exit 1 on a real regression
+neverempty render report.json               # markdown report
+neverempty import traces.jsonl --cases cases.jsonl   # traces from another language
+neverempty judge calibrate labels.jsonl     # kappa, 3x3 matrix, per-language slice
+neverempty readme evals/reports/*.json      # published numbers, linked to their reports
 ```
 
 Exit codes from `gate` are the contract: `0` pass, `1` regression, `2` must-pass
@@ -190,7 +190,7 @@ on real regressions rather than on noise.
 Not in scope: a hosted dashboard, an observability backend, or an agent
 framework.
 
-Also deferred past 0.1.0: `toolproof.langchain.wrap(base_tool)`, for wrapping a
+Also deferred past 0.1.0: `neverempty.langchain.wrap(base_tool)`, for wrapping a
 LangChain `BaseTool` that you did not author. The two paths that exist already
 cover it — the `@tool` decorator for tools you write, and the LangChain callback
 handler, which traces any tool the framework invokes — so `wrap` would add a
@@ -266,7 +266,7 @@ judge, which is the least trustworthy component here and is treated that way.
 | Nondeterminism | Temperature 0, a content-addressed cache so reruns are identical, and a measured self-consistency rate. |
 | Invented labels | Malformed output is retried twice and then labelled `judge_error`, never guessed. |
 
-A judge number is never published without its agreement figure. `toolproof judge
+A judge number is never published without its agreement figure. `neverempty judge
 calibrate` reports Cohen's kappa against human labels, the 3x3 matrix, and
 precision and recall for `contradicted` specifically. Below kappa 0.6 the
 judge-derived numbers are cut and only the deterministic checks are published.
@@ -282,18 +282,18 @@ never becomes a red build on unrelated work.
 ## Installation
 
 ```bash
-pip install toolproof
+pip install neverempty
 ```
 
 Core depends on `pydantic>=2` and nothing else. Python 3.10 to 3.13.
-Integrations ship as extras: `toolproof[langgraph]`, `toolproof[openai]`,
-`toolproof[anthropic]`, `toolproof[bedrock]`, `toolproof[otel]`.
+Integrations ship as extras: `neverempty[langgraph]`, `neverempty[openai]`,
+`neverempty[anthropic]`, `neverempty[bedrock]`, `neverempty[otel]`.
 
-<!-- toolproof:numbers:begin -->
+<!-- neverempty:numbers:begin -->
 ## Numbers
 
 No measured numbers yet. This section is generated from committed reports, so it stays empty until a run produces one.
-<!-- toolproof:numbers:end -->
+<!-- neverempty:numbers:end -->
 
 Every number will show its sample size, confidence interval, resolved model
 snapshot, date and git sha, and will link to the committed report it was
@@ -302,8 +302,8 @@ rendered from. Judge-derived numbers are cut when kappa is below 0.6.
 The region above is generated; regenerate and check it with:
 
 ```bash
-toolproof readme evals/reports/*.json
-toolproof readme evals/reports/*.json --check README.md   # CI
+neverempty readme evals/reports/*.json
+neverempty readme evals/reports/*.json --check README.md   # CI
 ```
 
 ## Documentation

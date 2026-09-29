@@ -13,57 +13,57 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-import toolproof
+import neverempty
 
 
 def test_imports_cleanly() -> None:
-    assert toolproof.__version__
+    assert neverempty.__version__
 
 
 def test_version_matches_installed_distribution() -> None:
-    assert importlib.metadata.version("toolproof") == toolproof.__version__
+    assert importlib.metadata.version("neverempty") == neverempty.__version__
 
 
 def test_ships_py_typed_marker() -> None:
-    marker = Path(toolproof.__file__).parent / "py.typed"
+    marker = Path(neverempty.__file__).parent / "py.typed"
     assert marker.is_file()
 
 
 def test_public_surface_is_exactly_dunder_all() -> None:
     """Everything not named in ``__all__`` is private (doc: API stability).
 
-    Submodules bound by the import system (``toolproof.cli``) are excluded,
+    Submodules bound by the import system (``neverempty.cli``) are excluded,
     but a module listed in ``__all__`` (``redact``) is deliberate public API
     and must stay in the comparison.
     """
-    exported = set(toolproof.__all__)
+    exported = set(neverempty.__all__)
     public = {
         name
-        for name, value in vars(toolproof).items()
+        for name, value in vars(neverempty).items()
         if not name.startswith("_") and (name in exported or not isinstance(value, ModuleType))
     }
-    assert public == set(toolproof.__all__) - {"__version__"}
+    assert public == set(neverempty.__all__) - {"__version__"}
 
 
 def test_all_names_are_importable() -> None:
-    for name in toolproof.__all__:
-        assert hasattr(toolproof, name), name
+    for name in neverempty.__all__:
+        assert hasattr(neverempty, name), name
 
 
 def test_console_script_runs() -> None:
     proc = subprocess.run(
-        [sys.executable, "-m", "toolproof.cli", "--version"],
+        [sys.executable, "-m", "neverempty.cli", "--version"],
         capture_output=True,
         text=True,
         check=True,
     )
-    assert toolproof.__version__ in proc.stdout
+    assert neverempty.__version__ in proc.stdout
 
 
 def test_core_import_does_not_pull_optional_extras() -> None:
     """Core depends on pydantic v2 only; importing must not need an extra."""
     code = (
-        "import sys; import toolproof; "
+        "import sys; import neverempty; "
         "banned = {'langgraph', 'langchain_core', 'openai', 'anthropic', 'boto3', "
         "'opentelemetry'}; "
         "hit = banned & {m.split('.')[0] for m in sys.modules}; "
@@ -85,10 +85,10 @@ def test_no_model_field_warns_on_any_supported_pydantic() -> None:
 
     from pydantic import BaseModel
 
-    import toolproof
+    import neverempty
 
     offenders: list[str] = []
-    for info in pkgutil.walk_packages(toolproof.__path__, f"{toolproof.__name__}."):
+    for info in pkgutil.walk_packages(neverempty.__path__, f"{neverempty.__name__}."):
         module = importlib.import_module(info.name)
         for name in dir(module):
             attribute = getattr(module, name)

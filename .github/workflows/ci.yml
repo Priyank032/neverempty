@@ -42,7 +42,7 @@ jobs:
       # A published number that no longer matches its report is the failure this
       # check exists to catch. With no committed reports, the section must say so.
       - name: README numbers match their reports
-        run: uv run toolproof readme $(ls evals/reports/*.json 2>/dev/null) --check README.md
+        run: uv run neverempty readme $(ls evals/reports/*.json 2>/dev/null) --check README.md
 
       - name: ruff format check
         run: uv run ruff format --check .
@@ -163,10 +163,10 @@ jobs:
         run: |
           uv venv /tmp/wheelcheck
           VIRTUAL_ENV=/tmp/wheelcheck uv pip install dist/*.whl
-          /tmp/wheelcheck/bin/python -c "import toolproof, pathlib; \
-            print(toolproof.__version__); \
-            assert (pathlib.Path(toolproof.__file__).parent / 'py.typed').is_file()"
-          /tmp/wheelcheck/bin/toolproof --version
+          /tmp/wheelcheck/bin/python -c "import neverempty, pathlib; \
+            print(neverempty.__version__); \
+            assert (pathlib.Path(neverempty.__file__).parent / 'py.typed').is_file()"
+          /tmp/wheelcheck/bin/neverempty --version
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4

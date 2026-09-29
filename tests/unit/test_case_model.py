@@ -13,8 +13,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from toolproof import Case
-from toolproof.dataset.case import (
+from neverempty import Case
+from neverempty.dataset.case import (
     CASE_SCHEMA_VERSION,
     ArgExpectation,
     Fact,
@@ -361,7 +361,7 @@ class TestFaults:
 
     def test_faults_convert_to_runtime_specs(self) -> None:
         """The dataset declaration and the wrapper's hook must agree."""
-        from toolproof import FaultSpec
+        from neverempty import FaultSpec
 
         case = make_case(faults=[{"tool": "search_jobs", "kind": "timeout", "after_calls": 2}])
         specs = case.fault_specs()

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "toolproof"
+name = "neverempty"
 version = "0.1.0"
 description = "Evaluate and trace tool-calling LLM agents. Tool failure can never look like an empty result."
 readme = "README.md"
@@ -42,22 +42,22 @@ otel = ["opentelemetry-sdk>=1.26", "opentelemetry-exporter-otlp-proto-http>=1.26
 # in the design doc has actually been run and the numbers held up.
 jev = []
 all = [
-  "toolproof[jev]",
-  "toolproof[langgraph]",
-  "toolproof[openai]",
-  "toolproof[anthropic]",
-  "toolproof[bedrock]",
-  "toolproof[otel]",
+  "neverempty[jev]",
+  "neverempty[langgraph]",
+  "neverempty[openai]",
+  "neverempty[anthropic]",
+  "neverempty[bedrock]",
+  "neverempty[otel]",
 ]
 
 [project.scripts]
-toolproof = "toolproof.cli:main"
+neverempty = "neverempty.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/priyank-agrawal/toolproof"
-Repository = "https://github.com/priyank-agrawal/toolproof"
-Changelog = "https://github.com/priyank-agrawal/toolproof/blob/main/CHANGELOG.md"
-Issues = "https://github.com/priyank-agrawal/toolproof/issues"
+Homepage = "https://github.com/priyank-agrawal/neverempty"
+Repository = "https://github.com/priyank-agrawal/neverempty"
+Changelog = "https://github.com/priyank-agrawal/neverempty/blob/main/CHANGELOG.md"
+Issues = "https://github.com/priyank-agrawal/neverempty/issues"
 
 [dependency-groups]
 dev = [
@@ -76,7 +76,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/toolproof"]
+packages = ["src/neverempty"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/tests", "/schemas", "/README.md", "/CHANGELOG.md", "/LICENSE"]
@@ -118,7 +118,7 @@ ignore = [
 "scripts/**" = ["E402"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["toolproof"]
+known-first-party = ["neverempty"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "parents"
@@ -165,12 +165,12 @@ markers = [
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-source = ["src/toolproof"]
+source = ["src/neverempty"]
 branch = true
 parallel = true
 
 [tool.coverage.paths]
-source = ["src/toolproof", "*/site-packages/toolproof"]
+source = ["src/neverempty", "*/site-packages/neverempty"]
 
 [tool.coverage.report]
 show_missing = true

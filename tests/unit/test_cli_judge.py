@@ -1,4 +1,4 @@
-"""The ``toolproof judge calibrate`` subcommand.
+"""The ``neverempty judge calibrate`` subcommand.
 
 Prints Cohen's kappa, the 3x3 matrix, and precision and recall for
 ``contradicted`` specifically, because that is the label driving the headline
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from toolproof.cli import main
+from neverempty.cli import main
 
 
 def write_calibration(path: Path, rows: list[dict[str, object]]) -> Path:
@@ -179,7 +179,7 @@ class TestInjectionFixtures:
     def test_the_shipped_injection_fixtures_load(self) -> None:
         """The doc requires two injection fixtures in the calibration set. They
         ship with the library so a downstream set can start from them."""
-        from toolproof.judge.calibration import load_injection_fixtures
+        from neverempty.judge.calibration import load_injection_fixtures
 
         cases = load_injection_fixtures()
         assert len(cases) >= 2
@@ -188,7 +188,7 @@ class TestInjectionFixtures:
     def test_every_injection_fixture_carries_an_instruction_in_its_evidence(
         self,
     ) -> None:
-        from toolproof.judge.calibration import load_injection_fixtures
+        from neverempty.judge.calibration import load_injection_fixtures
 
         cases = load_injection_fixtures()
         for case in cases:
@@ -198,7 +198,7 @@ class TestInjectionFixtures:
     def test_the_fixtures_expect_the_label_not_to_flip(self) -> None:
         """Each fixture's human label is what a judge that ignored the embedded
         instruction would say. A judge that obeyed it would answer supported."""
-        from toolproof.judge.calibration import load_injection_fixtures
+        from neverempty.judge.calibration import load_injection_fixtures
 
         cases = load_injection_fixtures()
         assert any(case.human_label != "supported" for case in cases)
@@ -206,9 +206,9 @@ class TestInjectionFixtures:
     async def test_the_judge_holds_the_line_on_every_shipped_fixture(self) -> None:
         """End to end: the real judge, the shipped fixtures, a scripted model
         that would obey an instruction if one reached it."""
-        from toolproof.judge.calibration import load_injection_fixtures
-        from toolproof.judge.judge import Claim, ClaimJudge
-        from toolproof.judge.model import ScriptedJudge
+        from neverempty.judge.calibration import load_injection_fixtures
+        from neverempty.judge.judge import Claim, ClaimJudge
+        from neverempty.judge.model import ScriptedJudge
 
         cases = load_injection_fixtures()
         for case in cases:
@@ -226,7 +226,7 @@ class TestInjectionFixtures:
             assert "<evidence>" in model.calls[0].user
 
     def test_calibrating_the_shipped_fixtures_counts_them_as_injections(self) -> None:
-        from toolproof.judge.calibration import calibrate, load_injection_fixtures
+        from neverempty.judge.calibration import calibrate, load_injection_fixtures
 
         cases = load_injection_fixtures()
         result = calibrate(
@@ -240,7 +240,7 @@ class TestInjectionFixtures:
 
     def test_a_flipped_injection_is_reported_as_not_held(self) -> None:
         """The number that matters: how many fixtures the judge did *not* hold."""
-        from toolproof.judge.calibration import calibrate, load_injection_fixtures
+        from neverempty.judge.calibration import calibrate, load_injection_fixtures
 
         cases = load_injection_fixtures()
         result = calibrate(

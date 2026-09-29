@@ -1,4 +1,4 @@
-"""``toolproof readme``: publish from reports, or refuse."""
+"""``neverempty readme``: publish from reports, or refuse."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from toolproof.cli import BEGIN_MARKER, END_MARKER, main
-from toolproof.report.report import Metric, Report
+from neverempty.cli import BEGIN_MARKER, END_MARKER, main
+from neverempty.report.report import Metric, Report
 
 
 def build(path: Path, *, kappa: float | None = None, complete: bool = True) -> Path:
@@ -18,7 +18,7 @@ def build(path: Path, *, kappa: float | None = None, complete: bool = True) -> P
         "complete": complete,
         "status": "ok" if complete else "incomplete",
         "env": {
-            "toolproof_version": "0.1.0",
+            "neverempty_version": "0.1.0",
             "pricing_version": "openai-2026-09-01",
             "python_version": "3.12.10",
             "target_git_sha": "c" * 40,
@@ -86,7 +86,7 @@ class TestCheck:
         )
 
     def _rendered(self, report: Path) -> str:
-        from toolproof.report.readme import load_reports, render_readme_numbers
+        from neverempty.report.readme import load_reports, render_readme_numbers
 
         return render_readme_numbers(load_reports([report]))
 

@@ -15,8 +15,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from toolproof import Span, Trace
-from toolproof.core.trace import (
+from neverempty import Span, Trace
+from neverempty.core.trace import (
     SCHEMA_VERSION,
     Cost,
     Env,
@@ -30,7 +30,7 @@ RFC3339_Z = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$")
 
 def make_env(**overrides: Any) -> Env:
     base: dict[str, Any] = {
-        "toolproof_version": "0.0.1",
+        "neverempty_version": "0.0.1",
         "target_git_sha": "a" * 40,
         "target_dirty": False,
         "prompt_hashes": {"INTENT_PROMPT": "b" * 64},
@@ -344,7 +344,7 @@ class TestEnv:
     def test_every_documented_reproducibility_field_is_present(self) -> None:
         env = make_env()
         for field in (
-            "toolproof_version",
+            "neverempty_version",
             "target_git_sha",
             "target_dirty",
             "prompt_hashes",

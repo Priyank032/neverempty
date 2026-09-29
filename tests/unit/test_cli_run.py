@@ -1,4 +1,4 @@
-"""``toolproof run``: execute the suites a config declares.
+"""``neverempty run``: execute the suites a config declares.
 
 The primary entry point in the doc's CLI table, and what `evals.yml` invokes. It
 is deliberately thin — the Runner already takes every field the config carries —
@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from toolproof.cli import main
+from neverempty.cli import main
 
 CONFIG = """
 [project]
@@ -62,7 +62,7 @@ def write_config(
 ) -> Path:
     cases_path = tmp_path / "demo.jsonl"
     write_cases(cases_path, cases)
-    config = tmp_path / "toolproof.toml"
+    config = tmp_path / "neverempty.toml"
     config.write_text(
         CONFIG.format(
             entrypoint=entrypoint,
@@ -208,7 +208,7 @@ class TestOutputPaths:
         ]
         cases_b.write_text(json.dumps(rows[0]) + "\n", encoding="utf-8")
 
-        config = tmp_path / "toolproof.toml"
+        config = tmp_path / "neverempty.toml"
         config.write_text(
             f"""
 [project]

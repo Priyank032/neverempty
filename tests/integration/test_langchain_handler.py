@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import pytest
 
-from toolproof import MemorySink, Tracer
+from neverempty import MemorySink, Tracer
 
 pytest.importorskip("langchain_core")
 

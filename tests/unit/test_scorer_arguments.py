@@ -17,8 +17,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from toolproof import scorers
-from toolproof.dataset.case import Case
+from neverempty import scorers
+from neverempty.dataset.case import Case
 
 from ._scoring import tool_span, trace
 

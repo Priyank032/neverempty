@@ -18,7 +18,7 @@ gate measures nothing. The same reasoning puts every provider SDK behind an extr
 and keeps the judge usable with an offline fake.
 
 ```
-toolproof/
+neverempty/
   core/          results, @tool, faults, trace models      <- pydantic only
   tracer/        contextvars capture, sinks, redaction, pricing
   dataset/       Case v1, loader, split hashing
@@ -195,7 +195,7 @@ suite is a refusal, not a 0%.
   dependency that would make the gate require a network.
 - **An agent framework.** The target is `async (Case, Tracer) -> None`. The
   LangGraph adapter builds such a callable; it is not required.
-- **`toolproof.langchain.wrap(base_tool)`**, deferred past 0.1.0. The `@tool`
+- **`neverempty.langchain.wrap(base_tool)`**, deferred past 0.1.0. The `@tool`
   decorator and the callback handler already cover authoring a tool and tracing
   one the framework invokes, so `wrap` would be a third way to do the same thing
   and a public symbol to keep compatible.

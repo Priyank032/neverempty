@@ -18,8 +18,8 @@ from typing import Any
 
 import pytest
 
-from toolproof import ScorerError, scorers
-from toolproof.dataset.case import Case
+from neverempty import ScorerError, scorers
+from neverempty.dataset.case import Case
 
 from ._scoring import trace
 

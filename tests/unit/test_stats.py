@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof.metrics.stats import (
+from neverempty.metrics.stats import (
     Interval,
     bootstrap_ci,
     mcnemar_exact,
@@ -259,7 +259,7 @@ class TestBootstrap:
     def test_the_default_is_ten_thousand_resamples(self) -> None:
         """The doc specifies 10k. Fewer would be cheaper and less stable, and
         the difference would show up as CI noise nobody could explain."""
-        from toolproof.metrics.stats import BOOTSTRAP_RESAMPLES
+        from neverempty.metrics.stats import BOOTSTRAP_RESAMPLES
 
         assert BOOTSTRAP_RESAMPLES == 10_000
 

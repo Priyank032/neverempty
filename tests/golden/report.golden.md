@@ -39,7 +39,7 @@ p50 0ms, p95 0ms over 12 trace(s) at concurrency 4. Concurrency is stated becaus
 | --- | --- |
 | target commit | abc1234 |
 | resolved model | not recorded |
-| toolproof | 0.0.1-golden |
+| neverempty | 0.0.1-golden |
 | pricing table | empty-2026-09-23 |
 | python | 3.12.0 |
 | mode | live |

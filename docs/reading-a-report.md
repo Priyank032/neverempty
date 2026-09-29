@@ -1,6 +1,6 @@
 # Reading a report
 
-Below is real output from `toolproof render`, annotated with what each number is
+Below is real output from `neverempty render`, annotated with what each number is
 allowed to claim. The design rule throughout: a number that cannot support a
 claim does not get printed as one.
 
@@ -39,7 +39,7 @@ agreement with human labels (Cohen's kappa) 0.780.
 | --- | --- |
 | target commit | 9f2c1a0000000000000000000000000000000000 |
 | resolved model | gpt-4o-mini-2024-07-18 |
-| toolproof | 0.1.0 |
+| neverempty | 0.1.0 |
 | pricing table | openai-2026-09-01 |
 | python | 3.12.10 |
 | mode | live |
@@ -168,7 +168,7 @@ into has no accuracy at all.
 ## What the gate does with this
 
 ```bash
-toolproof gate baseline.json candidate.json
+neverempty gate baseline.json candidate.json
 ```
 
 - Pairs on `case_id` and requires matching `suite_version`.

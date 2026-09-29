@@ -1,4 +1,4 @@
-"""``toolproof coverage``: the labelling backlog, and a non-zero exit.
+"""``neverempty coverage``: the labelling backlog, and a non-zero exit.
 
 An unlabelled suite must fail CI rather than running and publishing a rate over
 an empty denominator. That is this library's own headline rule applied to its own
@@ -12,14 +12,14 @@ from pathlib import Path
 
 import pytest
 
-from toolproof.cli import main
+from neverempty.cli import main
 
 CONFIG = """
 [project]
 name = "fixture"
 
 [target]
-entrypoint = "toolproof.evals.nextrole:adapter"
+entrypoint = "neverempty.evals.nextrole:adapter"
 
 [[suite]]
 name = "nextrole.routing"
@@ -57,7 +57,7 @@ def write_cases(path: Path, counts: dict[str, int]) -> None:
 def config(tmp_path: Path) -> Path:
     cases = tmp_path / "routing.jsonl"
     write_cases(cases, {})
-    config = tmp_path / "toolproof.toml"
+    config = tmp_path / "neverempty.toml"
     config.write_text(CONFIG.format(path=cases.as_posix()), encoding="utf-8")
     return config
 
@@ -70,12 +70,12 @@ class TestExitCodes:
         assert main(["coverage", str(config), "--allow-incomplete"]) == 0
 
     def test_a_fully_labelled_suite_exits_zero(self, tmp_path: Path) -> None:
-        from toolproof.evals.nextrole import BRANCHES
-        from toolproof.evals.suites import MIN_PER_BRANCH
+        from neverempty.evals.nextrole import BRANCHES
+        from neverempty.evals.suites import MIN_PER_BRANCH
 
         cases = tmp_path / "routing.jsonl"
         write_cases(cases, dict.fromkeys(BRANCHES, MIN_PER_BRANCH))
-        config = tmp_path / "toolproof.toml"
+        config = tmp_path / "neverempty.toml"
         config.write_text(CONFIG.format(path=cases.as_posix()), encoding="utf-8")
         assert main(["coverage", str(config)]) == 0
 
@@ -107,7 +107,7 @@ class TestOutput:
     ) -> None:
         cases = tmp_path / "routing.jsonl"
         write_cases(cases, {"job_search": 30, "general": 4})
-        config = tmp_path / "toolproof.toml"
+        config = tmp_path / "neverempty.toml"
         config.write_text(CONFIG.format(path=cases.as_posix()), encoding="utf-8")
         main(["coverage", str(config), "--allow-incomplete"])
         out = capsys.readouterr().out

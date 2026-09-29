@@ -12,10 +12,10 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from toolproof import scorers
-from toolproof.dataset.case import Case
-from toolproof.scorers.match import as_datetime, as_member_list, as_number, normalize
-from toolproof.scorers.reading import recorded_args
+from neverempty import scorers
+from neverempty.dataset.case import Case
+from neverempty.scorers.match import as_datetime, as_member_list, as_number, normalize
+from neverempty.scorers.reading import recorded_args
 
 from ._scoring import tool_span, trace
 

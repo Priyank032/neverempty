@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from toolproof.dataset.case import Case
-from toolproof.evals.yojanakhoj import (
+from neverempty.dataset.case import Case
+from neverempty.evals.yojanakhoj import (
     CATEGORY_CONFIDENCE,
     CATEGORY_LANGUAGE,
     CATEGORY_OVERCLAIM,
@@ -20,7 +20,7 @@ from toolproof.evals.yojanakhoj import (
     consistency,
     read_items,
 )
-from toolproof.runner.runner import ScorerError
+from neverempty.runner.runner import ScorerError
 
 from ._scoring import trace
 

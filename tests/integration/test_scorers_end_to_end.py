@@ -17,8 +17,8 @@ from typing import Any
 
 import pytest
 
-from toolproof import Case, Dataset, Runner, Tracer, scorers
-from toolproof.tracer.sinks import MemorySink
+from neverempty import Case, Dataset, Runner, Tracer, scorers
+from neverempty.tracer.sinks import MemorySink
 
 pytest.importorskip("langgraph")
 
@@ -333,7 +333,7 @@ class TestRouteProbeSource:
         """With a probe span present, the scorer takes ``graph.next`` — the first
         source in the fallback order. The probe writes that span itself, so this
         exercises the real integration rather than a hand-set attribute."""
-        from toolproof.integrations.langgraph import route_probe
+        from neverempty.integrations.langgraph import route_probe
 
         probe = route_probe(fixture_agent.build_orchestrator(), branch_nodes=fixture_agent.BRANCHES)
         compiled = fixture_agent.build_orchestrator().compile()
@@ -366,7 +366,7 @@ class TestRouteProbeSource:
     async def test_the_probe_beats_the_node_spans_it_runs_beside(self, tmp_path: Path) -> None:
         """Both sources are present and they agree here, so the assertion that
         matters is which one the scorer reported reading."""
-        from toolproof.integrations.langgraph import route_probe
+        from neverempty.integrations.langgraph import route_probe
 
         probe = route_probe(fixture_agent.build_orchestrator(), branch_nodes=fixture_agent.BRANCHES)
         compiled = fixture_agent.build_orchestrator().compile()

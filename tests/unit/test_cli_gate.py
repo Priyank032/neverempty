@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from toolproof import CaseOutcome, Report, Score
-from toolproof.cli import main
-from toolproof.core.trace import Env
+from neverempty import CaseOutcome, Report, Score
+from neverempty.cli import main
+from neverempty.core.trace import Env
 
 
 def write_report(
@@ -70,7 +70,7 @@ def write_report(
             "complete": complete,
             "status": status,
             "env": Env(
-                toolproof_version="0.0.1",
+                neverempty_version="0.0.1",
                 pricing_version="v1",
                 python_version="3.12.10",
                 resolved_models=["gpt-4o-2024-08-06"],
@@ -281,7 +281,7 @@ class TestGateFromConfig:
     """``--config`` reads ``[gate]``, so CI and a local run use one definition."""
 
     def write_config(self, tmp_path: Path, gate_block: str) -> Path:
-        path = tmp_path / "toolproof.toml"
+        path = tmp_path / "neverempty.toml"
         path.write_text(
             '[project]\nname = "x"\n[target]\nentrypoint = "m:f"\n'
             '[[suite]]\nname = "a.b"\npath = "x.jsonl"\nsplit = "test"\n' + gate_block,

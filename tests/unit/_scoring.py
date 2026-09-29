@@ -10,7 +10,7 @@ from __future__ import annotations
 import itertools
 from typing import Any
 
-from toolproof.core.trace import Cost, Env, FinalOutput, Span, Trace, Usage
+from neverempty.core.trace import Cost, Env, FinalOutput, Span, Trace, Usage
 
 _ids = itertools.count(1)
 
@@ -21,7 +21,7 @@ def span_id() -> str:
 
 def env() -> Env:
     return Env(
-        toolproof_version="0.0.1",
+        neverempty_version="0.0.1",
         pricing_version="empty-2026-09-23",
         python_version="3.12.10",
     )

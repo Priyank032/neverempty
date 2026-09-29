@@ -14,10 +14,10 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from toolproof import scorers
-from toolproof.dataset.case import Case
-from toolproof.judge.judge import ClaimJudge
-from toolproof.judge.model import ScriptedJudge
+from neverempty import scorers
+from neverempty.dataset.case import Case
+from neverempty.judge.judge import ClaimJudge
+from neverempty.judge.model import ScriptedJudge
 
 from ._scoring import trace
 
@@ -219,19 +219,19 @@ class TestDegradedRuns:
     """A judge error rate above 2% makes the run ``degraded``."""
 
     def test_the_threshold_is_two_percent(self) -> None:
-        from toolproof.judge.judge import DEGRADED_ERROR_RATE
+        from neverempty.judge.judge import DEGRADED_ERROR_RATE
 
         assert DEGRADED_ERROR_RATE == 0.02
 
     async def test_a_high_error_rate_marks_the_judge_info_degraded(self) -> None:
-        from toolproof.judge.judge import Claim
+        from neverempty.judge.judge import Claim
 
         judge = make_judge("bad", "bad", "bad")
         await judge.verify(claims=[Claim(id="c1", text="x")], evidence={"rows": []})
         assert judge.degraded is True
 
     async def test_a_clean_judge_is_not_degraded(self) -> None:
-        from toolproof.judge.judge import Claim
+        from neverempty.judge.judge import Claim
 
         judge = make_judge(verdict("supported"))
         await judge.verify(claims=[Claim(id="c1", text="x")], evidence={"rows": []})
@@ -243,7 +243,7 @@ class TestDegradedRuns:
         assert make_judge().degraded is False
 
     async def test_the_judge_info_block_carries_the_rate(self) -> None:
-        from toolproof.judge.judge import Claim
+        from neverempty.judge.judge import Claim
 
         judge = make_judge(verdict("supported"))
         await judge.verify(claims=[Claim(id="c1", text="x")], evidence={"rows": []})
@@ -258,9 +258,9 @@ class TestGateExcludesJudgeMetrics:
         """The doc excludes judge-derived metrics from the gate on a degraded
         run. The deterministic ones still gate, because a flaky judge is not a
         reason to stop checking routing."""
-        from toolproof import CaseOutcome, Metric, Report, Score
-        from toolproof.core.trace import Env
-        from toolproof.report.gate import GateConfig, gate
+        from neverempty import CaseOutcome, Metric, Report, Score
+        from neverempty.core.trace import Env
+        from neverempty.report.gate import GateConfig, gate
 
         def build(route_value: float, status: str) -> Report:
             return Report.model_validate(
@@ -271,7 +271,7 @@ class TestGateExcludesJudgeMetrics:
                     "complete": True,
                     "status": status,
                     "env": Env(
-                        toolproof_version="0.0.1",
+                        neverempty_version="0.0.1",
                         pricing_version="v1",
                         python_version="3.12.10",
                     ),
@@ -309,9 +309,9 @@ class TestGateExcludesJudgeMetrics:
         assert strict.exit_code == 1
 
     def test_an_ok_report_evaluates_judge_floors_normally(self) -> None:
-        from toolproof import CaseOutcome, Metric, Report, Score
-        from toolproof.core.trace import Env
-        from toolproof.report.gate import GateConfig, gate
+        from neverempty import CaseOutcome, Metric, Report, Score
+        from neverempty.core.trace import Env
+        from neverempty.report.gate import GateConfig, gate
 
         report = Report.model_validate(
             {
@@ -321,7 +321,7 @@ class TestGateExcludesJudgeMetrics:
                 "complete": True,
                 "status": "ok",
                 "env": Env(
-                    toolproof_version="0.0.1",
+                    neverempty_version="0.0.1",
                     pricing_version="v1",
                     python_version="3.12.10",
                 ),
@@ -376,7 +376,7 @@ class TestNoNetwork:
         install would make the trace layer unusable for a tracing-only user."""
         import pathlib
 
-        source = pathlib.Path("src/toolproof/judge").rglob("*.py")
+        source = pathlib.Path("src/neverempty/judge").rglob("*.py")
         for path in source:
             text = path.read_text(encoding="utf-8")
             for banned in ("import boto3", "import openai", "import anthropic"):

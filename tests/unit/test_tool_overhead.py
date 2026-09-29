@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-from toolproof import tool
+from neverempty import tool
 
 CALLS = 2000
 BUDGET_S = 1e-3
@@ -99,7 +99,7 @@ def test_no_network_io_on_the_hot_path() -> None:
     """The wrapper must not touch a socket, even with a fault scope active."""
     import socket
 
-    from toolproof.core.faults import FaultSpec, fault_scope
+    from neverempty.core.faults import FaultSpec, fault_scope
 
     original = socket.socket
 

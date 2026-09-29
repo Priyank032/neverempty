@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from toolproof import MemorySink, Tracer
+from neverempty import MemorySink, Tracer
 
 
 def build() -> tuple[Tracer, MemorySink]:

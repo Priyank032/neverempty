@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-toolproof is pre-1.0. Only the latest released version receives security
+neverempty is pre-1.0. Only the latest released version receives security
 fixes. There are no backports to earlier 0.x releases.
 
 | Version | Supported |
@@ -13,7 +13,7 @@ fixes. There are no backports to earlier 0.x releases.
 ## Reporting a vulnerability
 
 Report privately through GitHub's
-[private vulnerability reporting](https://github.com/priyank-agrawal/toolproof/security/advisories/new)
+[private vulnerability reporting](https://github.com/priyank-agrawal/neverempty/security/advisories/new)
 on this repository. Do not open a public issue for a vulnerability.
 
 Please include the version, Python version, a minimal reproduction, and what

@@ -2,7 +2,7 @@
 
 This is the part of the work that decides whether your published number means
 anything, and it is the part most likely to be skipped. The code cannot do it for
-you, and it deliberately refuses to pretend otherwise: `toolproof coverage` exits
+you, and it deliberately refuses to pretend otherwise: `neverempty coverage` exits
 non-zero until the labels exist.
 
 ## The one rule that matters most
@@ -45,7 +45,7 @@ At n=100 a real 5-point regression and pure noise look identical. That is why th
 renderer labels anything below n=50 as indicative and refuses to print a
 percentage at all below n=10.
 
-`toolproof coverage` tells you exactly what is missing:
+`neverempty coverage` tells you exactly what is missing:
 
 ```text
 Suite nextrole.routing (test split): 0 case(s), 11 branch(es), minimum 30 per branch.
@@ -138,7 +138,7 @@ instrument until you calibrate it. That takes about 60 labelled claim/evidence
 pairs, stratified across the three labels and both languages.
 
 ```bash
-toolproof judge calibrate evals/calibration/judge.v1.jsonl
+neverempty judge calibrate evals/calibration/judge.v1.jsonl
 ```
 
 It prints Cohen's kappa, the 3×3 matrix, precision and recall for
@@ -150,7 +150,7 @@ scores 80% agreement and kappa 0.000. Raw agreement is inflated by the base rate
 kappa is not.
 
 Below kappa 0.6, the judge-derived numbers are cut and only the deterministic
-checks are published. `toolproof readme` enforces that — it will not print them.
+checks are published. `neverempty readme` enforces that — it will not print them.
 
 The per-language slice earns its place immediately. A judge that is 90% overall
 can be 100% in English and 67% in Hindi, and the aggregate hides it completely.
