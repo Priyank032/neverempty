@@ -33,7 +33,7 @@ neverempty makes that unrepresentable in three places at once:
 Install from a clone (PyPI release pending):
 
 ```bash
-git clone https://github.com/priyank-agrawal/neverempty
+git clone https://github.com/Priyank032/neverempty
 cd neverempty && pip install -e .
 ```
 

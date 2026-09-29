@@ -6,7 +6,7 @@ Every command and output below was run against the version in this repository.
 ## Install
 
 ```bash
-git clone https://github.com/priyank-agrawal/neverempty
+git clone https://github.com/Priyank032/neverempty
 cd neverempty
 pip install -e .
 ```

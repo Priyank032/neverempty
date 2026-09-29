@@ -415,6 +415,6 @@ Name reservation and repository skeleton. No public API yet.
   on pydantic v2.
 - `neverempty --version` console script.
 
-[Unreleased]: https://github.com/priyank-agrawal/neverempty/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/priyank-agrawal/neverempty/releases/tag/v0.1.0
-[0.0.1]: https://github.com/priyank-agrawal/neverempty/releases/tag/v0.0.1
+[Unreleased]: https://github.com/Priyank032/neverempty/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Priyank032/neverempty/releases/tag/v0.1.0
+[0.0.1]: https://github.com/Priyank032/neverempty/releases/tag/v0.0.1

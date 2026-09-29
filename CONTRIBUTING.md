@@ -9,7 +9,7 @@ where that bug hides.
 Development uses [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/priyank-agrawal/neverempty
+git clone https://github.com/Priyank032/neverempty
 cd neverempty
 uv sync --group dev --all-extras
 uv run pytest

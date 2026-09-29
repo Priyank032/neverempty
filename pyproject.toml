@@ -54,10 +54,10 @@ all = [
 neverempty = "neverempty.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/priyank-agrawal/neverempty"
-Repository = "https://github.com/priyank-agrawal/neverempty"
-Changelog = "https://github.com/priyank-agrawal/neverempty/blob/main/CHANGELOG.md"
-Issues = "https://github.com/priyank-agrawal/neverempty/issues"
+Homepage = "https://github.com/Priyank032/neverempty"
+Repository = "https://github.com/Priyank032/neverempty"
+Changelog = "https://github.com/Priyank032/neverempty/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Priyank032/neverempty/issues"
 
 [dependency-groups]
 dev = [
