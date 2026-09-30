@@ -365,10 +365,20 @@ def _must_pass_failures(report: Report, *, primary: str | None) -> list[str]:
     return sorted(case_id for case_id in flagged if verdicts.get(case_id) is not True)
 
 
-def _floor_breaches(report: Report, config: GateConfig) -> tuple[list[str], list[str]]:
-    """Breached floors, and warnings for floors that could not be evaluated."""
+def _floor_breaches(
+    report: Report, config: GateConfig, *, base: Report | None = None
+) -> tuple[list[str], list[str], list[str]]:
+    """Breached floors, floors that vanished, and floors not evaluated.
+
+    ``base`` lets a floor tell two different facts apart that otherwise wear
+    the same shape -- see ``vanished`` below.
+    """
     metrics = {m.name: m for m in _metrics_of(report, seed=config.seed)}
+    base_metrics = (
+        {m.name: m for m in _metrics_of(base, seed=config.seed)} if base is not None else {}
+    )
     breaches: list[str] = []
+    vanished: list[str] = []
     warnings: list[str] = []
     degraded = report.status == "degraded"
 
@@ -388,8 +398,24 @@ def _floor_breaches(report: Report, config: GateConfig) -> tuple[list[str], list
             continue
 
         if metric is None or metric.value is None:
-            # Not measured cannot be a breach. Treating it as one would be this
-            # library's own headline bug: missing must never look like failure.
+            base_metric = base_metrics.get(name)
+            if base_metric is not None and base_metric.value is not None:
+                # The baseline measured it and the candidate does not. Something
+                # the agent used to do, it has stopped doing -- an agent that
+                # produces no route has failed routing, which is not the same
+                # claim as "this suite does not test routing". Skipping the floor
+                # here is the headline bug pointed the other way: a failure
+                # rendered as an absence, passing a build at exit 0.
+                vanished.append(
+                    f"{name!r} was measured in the baseline "
+                    f"({base_metric.value:.4f}) and is no longer measured in the "
+                    f"candidate, so floor {key!r} cannot be checked"
+                )
+                continue
+            # Never measured on either side: nothing was measured and nothing
+            # regressed, so failing the build would invent a result. Treating
+            # this as a breach would be this library's own headline bug:
+            # missing must never look like failure.
             warnings.append(
                 f"floor {key!r} could not be evaluated: metric {name!r} was not measured"
             )
@@ -400,7 +426,7 @@ def _floor_breaches(report: Report, config: GateConfig) -> tuple[list[str], list
         elif not is_max and metric.value < threshold:
             breaches.append(f"{name}={metric.value:.4f} below floor {threshold}")
 
-    return breaches, warnings
+    return breaches, vanished, warnings
 
 
 def _threshold_warnings(base: Report, candidate: Report, config: GateConfig) -> list[str]:
@@ -452,7 +478,7 @@ def gate(
     if comparison.refused:
         return _invalid(comparison.refusal_reason)
 
-    breaches, floor_warnings = _floor_breaches(candidate, config)
+    breaches, vanished, floor_warnings = _floor_breaches(candidate, config, base=base)
     warnings = [*floor_warnings, *_threshold_warnings(base, candidate, config)]
 
     cases = len({o.case_id for o in candidate.outcomes})
@@ -471,6 +497,21 @@ def gate(
             unstable_rate=unstable_rate,
             must_pass_failures=must_pass_failures,
             breached_floors=breaches,
+            warnings=warnings,
+            comparison=comparison,
+        )
+
+    if vanished:
+        # After must_pass, which is a proven failure of a named case, and before
+        # the statistical verdict, which cannot be computed for a metric that is
+        # not there. Reported as invalid input rather than a regression because
+        # no significance test produced it: the honest statement is "the number
+        # the floor guards is gone", not "the agent got worse by this much".
+        return _invalid(
+            "a floored metric is no longer measured: " + "; ".join(vanished),
+            mcnemar=comparison.mcnemar,
+            unstable_rate=unstable_rate,
+            breaches=breaches,
             warnings=warnings,
             comparison=comparison,
         )
@@ -527,8 +568,31 @@ def gate(
     )
 
 
-def _invalid(reason: str) -> GateResult:
-    return GateResult(verdict="invalid", exit_code=EXIT_CODES["invalid"], reason=reason)
+def _invalid(
+    reason: str,
+    *,
+    mcnemar: McNemarDTO | None = None,
+    unstable_rate: float = 0.0,
+    breaches: list[str] | None = None,
+    warnings: list[str] | None = None,
+    comparison: CompareResult | None = None,
+) -> GateResult:
+    """An infrastructure failure, exit 4.
+
+    The optional fields carry whatever was computed before the run was judged
+    invalid. A refusal that arrives before any comparison leaves them empty; one
+    that arrives after should not discard the diagnostics it already has.
+    """
+    return GateResult(
+        verdict="invalid",
+        exit_code=EXIT_CODES["invalid"],
+        reason=reason,
+        mcnemar=mcnemar,
+        unstable_rate=unstable_rate,
+        breached_floors=breaches or [],
+        warnings=warnings or [],
+        comparison=comparison,
+    )
 
 
 __all__ = [
