@@ -12,7 +12,73 @@ versioned independently of the package.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+An independent black-box review installed the wheel cold, with no source
+access and no design doc, and attacked the tool-wrapping path. The headline
+semantics held; six defects in the surrounding code did not. Each was
+reproduced by a test written before the fix.
+
+- **A tool failure always becomes a typed failure.** An exception whose
+  `__str__` raises escaped the `@tool` wrapper unchanged, so no `Err` was
+  produced at all -- the one thing the wrapper promises never to do. ORM and
+  gRPC error types that build their message lazily behave this way. The
+  message now falls back to the exception's type name, and an uncatchable
+  raised from inside the guard is still re-raised, so cancellation is never
+  converted into a result.
+- **`empty_when` no longer infers from truthiness.** A predicate returning a
+  truthy non-bool -- `lambda v: "no"`, a string that means *not* empty --
+  marked a full result `Empty` and discarded the data. A non-bool is now
+  refused with an `Err(kind="validation")` naming the predicate. Same for
+  `truncated_when`, which was passing its return through `bool()`.
+- **An unserializable result is a failure, not a repr.**
+  `json.dumps(default=str)` rendered an arbitrary object as
+  `"<app.Row object at 0x7f...>"` under `status: ok`, so the model read a
+  memory address as data. It now renders as `Err(kind="validation")`, and
+  `allow_nan=False` closes the same hole for `NaN` and `Infinity`.
+- **The gate verifies its input instead of trusting it.** `complete: true` was
+  believed on sight, so editing that one flag made the gate pass a run where
+  three of five cases never scored -- exit 0, "no significant regression".
+  `complete` is now cross-checked against `outcomes[].scored` and
+  `counts.unscored`, and a contradiction exits 4. An unscored `must_pass` case
+  still exits 2, because a safety requirement the harness could not prove
+  outranks an infrastructure complaint.
+- **Token counts are validated where they enter.** `record_usage` was typed
+  `int | None` but never checked, so a count parsed from a provider's JSON as
+  a string reached `int + str` and surfaced as a bare `TypeError` from a frame
+  the caller never entered. Validation is strict and runs before any attribute
+  is written, so `"1000"` is refused rather than coerced and a rejected call
+  leaves nothing half-recorded.
+- **An unmeasured duration is null, not zero.** `CaseOutcome.duration_ms`
+  defaulted to `0`, making a case whose trace never materialized
+  indistinguishable from a sub-millisecond one -- and the fabricated `0`
+  entered the latency sample and dragged p50 below anything observed. This was
+  the library's own rule ("missing must never look like zero") broken inside
+  its own report model.
+- **`neverempty readme` expands globs.** `validate` did; `readme` did not, so
+  the README's own documented command died on `[Errno 22]` under PowerShell
+  and cmd. An empty match is refused rather than rendered as an empty Numbers
+  section.
+
+### Documentation
+
+- `to_model()` returns a JSON **string**; the README showed a dict, so a
+  reader would have double-encoded it.
+- The install command no longer promises a `pip install` that fails.
+- Added the full `expect` reference: `tool_calls.mode`, all seven
+  `ArgExpectation.match` variants, `facts`, `items`, and the distinction
+  between a dataset `Fact` and the judge's `Claim`.
+- Added the gate's detection floor with measured numbers. Exact McNemar needs
+  five clean flips, so four regressions pass at any sample size -- 6.7 points
+  on a 60-case suite. `floors` defaults to empty, which a new user had no way
+  to know.
+- Documented that there is **no default payload size cap**, with a working
+  `truncated_when` recipe. The design doc's eight wrapper rules do not define
+  one and `truncated` is author-declared, so choosing a byte threshold would
+  mean inventing a number the specification does not set.
+- Every documented example is now executed by `tests/unit/test_docs_examples.py`,
+  including a check that the documented `match` modes are exactly the
+  implemented ones, in both directions.
 
 ## [0.1.0] - 2026-09-29
 
