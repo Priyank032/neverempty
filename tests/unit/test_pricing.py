@@ -107,11 +107,26 @@ class TestKnownCost:
         assert cost.usd == pytest.approx(2.50 / 1000 + 10.00 / 2000)
 
     def test_cached_input_tokens_are_priced_at_the_cached_rate(self) -> None:
+        """Cached tokens are a subset of the input count, not an addition.
+
+        This previously asserted ``2.50 + 1.25`` for a call whose every input
+        token was cached -- charging the full input rate and the cached rate for
+        the same tokens. That is the arithmetic that overstated a heavily cached
+        OpenAI call by about 3.9x; ``prompt_tokens`` already includes
+        ``cached_tokens``, so there were no full-price tokens to charge for.
+        """
         cost = table().cost_for(
             Usage(input_tokens=1_000_000, output_tokens=0, cached_input_tokens=1_000_000),
             ["gpt-4o-2024-08-06"],
         )
-        assert cost.usd == pytest.approx(2.50 + 1.25)
+        assert cost.usd == pytest.approx(1.25)
+
+    def test_a_partly_cached_call_charges_each_half_at_its_own_rate(self) -> None:
+        cost = table().cost_for(
+            Usage(input_tokens=1_000_000, output_tokens=0, cached_input_tokens=400_000),
+            ["gpt-4o-2024-08-06"],
+        )
+        assert cost.usd == pytest.approx(0.6 * 2.50 + 0.4 * 1.25)
 
     def test_a_genuinely_free_call_costs_zero_with_no_reason(self) -> None:
         """Zero is legitimate when it was measured, not when it was missing."""

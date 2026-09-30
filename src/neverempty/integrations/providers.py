@@ -151,11 +151,20 @@ def _extract_bedrock(response: Any) -> tuple[str | None, dict[str, Any], str | N
     raw = response.get("usage") or {}
     usage: dict[str, Any] = {}
     if raw:
-        usage["input_tokens"] = raw.get("inputTokens")
+        input_tokens = raw.get("inputTokens")
+        usage["input_tokens"] = input_tokens
         usage["output_tokens"] = raw.get("outputTokens")
         cached = raw.get("cacheReadInputTokens")
         if cached is not None:
             usage["cached_input_tokens"] = cached
+            # Normalised to the trace's convention, where cached tokens are a
+            # subset of the input count. Bedrock reports them separately --
+            # ``inputTokens`` excludes ``cacheReadInputTokens`` -- while
+            # OpenAI's ``prompt_tokens`` already includes its cached count. The
+            # difference is resolved here, where the provider is known, rather
+            # than left for the pricing table to guess at.
+            if input_tokens is not None:
+                usage["input_tokens"] = input_tokens + cached
 
     # converse echoes no model id, so the request's modelId is the best available.
     return None, usage, response.get("stopReason")

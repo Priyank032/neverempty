@@ -83,6 +83,45 @@ class Usage(_TraceModel):
     input_tokens: int | None = Field(default=None, ge=0)
     output_tokens: int | None = Field(default=None, ge=0)
     cached_input_tokens: int | None = Field(default=None, ge=0)
+    """A **subset** of ``input_tokens``, never an addition to it.
+
+    Providers disagree, so the convention is fixed here and normalised at each
+    adapter boundary, where the provider is known:
+
+    - OpenAI's ``prompt_tokens`` already includes
+      ``prompt_tokens_details.cached_tokens``.
+    - Bedrock's ``inputTokens`` excludes ``cacheReadInputTokens``, so the
+      adapter adds them before recording.
+
+    Leaving it ambiguous made the pricing arithmetic charge the full input at
+    the full rate and then the cached count again at the cached rate, which
+    overstated a heavily cached OpenAI call by about 3.9x. The field name is
+    only true under the subset reading, so that is the one enforced.
+    """
+
+    @model_validator(mode="after")
+    def _cached_within_input(self) -> Usage:
+        """A subset cannot exceed its superset.
+
+        Accepting it would leave a negative count of freshly-read tokens, and a
+        negative cost is not a cheap run -- it is a broken measurement wearing a
+        number.
+        """
+        if self.cached_input_tokens is None:
+            return self
+        if self.input_tokens is None:
+            raise ValueError(
+                "cached_input_tokens was reported without input_tokens; it is a "
+                "subset of the input count, so the total it belongs to must be "
+                "known"
+            )
+        if self.cached_input_tokens > self.input_tokens:
+            raise ValueError(
+                f"cached_input_tokens ({self.cached_input_tokens}) exceeds "
+                f"input_tokens ({self.input_tokens}); cached tokens are a subset "
+                f"of the input tokens, not an addition to them"
+            )
+        return self
 
     @property
     def usage_missing(self) -> bool:
@@ -98,6 +137,20 @@ class Usage(_TraceModel):
         """True when both halves were reported, so a cost can be computed."""
         return self.input_tokens is not None and self.output_tokens is not None
 
+    @property
+    def usage_partial(self) -> bool:
+        """True when some LLM call reported tokens and another reported none.
+
+        Distinct from ``usage_missing``, which means nothing was reported at
+        all. Both are refusals to price the run, but they are different facts:
+        nothing observed, versus part of the run observed and the totals
+        therefore describing less work than was done. Kept separate because
+        ``usage_missing`` is a published Trace v1 field and readers already
+        depend on its meaning.
+        """
+        extra = self.__pydantic_extra__ or {}
+        return bool(extra.get("usage_partial", False))
+
     def model_post_init(self, _context: object, /) -> None:
         # Surface the flag in serialized output too: a Node reader should not
         # have to reimplement the rule from the null pattern.
@@ -106,6 +159,7 @@ class Usage(_TraceModel):
             extra = {}
             object.__setattr__(self, "__pydantic_extra__", extra)
         extra["usage_missing"] = self.usage_missing
+        extra.setdefault("usage_partial", False)
 
 
 class Cost(_TraceModel):

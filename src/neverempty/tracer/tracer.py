@@ -202,6 +202,13 @@ class _RunState:
         self._input_tokens: int | None = None
         self._output_tokens: int | None = None
         self._cached_tokens: int | None = None
+        self._unreported_calls = 0
+        """LLM calls that named a model but reported no token counts.
+
+        Summing only the calls that did report made a partially observed run
+        indistinguishable from a cheap one: two calls, one silent, produced a
+        confident total for half the work. The count is kept so the cost can be
+        refused rather than understated."""
         self._models: list[str] = []
         self._next_span = 0
         self._lock = threading.Lock()
@@ -226,6 +233,9 @@ class _RunState:
         with self._lock:
             if model and model not in self._models:
                 self._models.append(model)
+            if input_tokens is None and output_tokens is None:
+                # A real call that reported nothing. Not the same as no call.
+                self._unreported_calls += 1
             if input_tokens is not None:
                 self._input_tokens = (self._input_tokens or 0) + input_tokens
             if output_tokens is not None:
@@ -238,6 +248,12 @@ class _RunState:
             input_tokens=self._input_tokens,
             output_tokens=self._output_tokens,
             cached_input_tokens=self._cached_tokens,
+        )
+
+    def usage_is_partial(self) -> bool:
+        """True when some call reported tokens and some reported none."""
+        return self._unreported_calls > 0 and (
+            self._input_tokens is not None or self._output_tokens is not None
         )
 
     def models(self) -> list[str]:
@@ -469,7 +485,22 @@ class Tracer:
             return None
 
         usage = state.usage()
-        cost: Cost = self.pricing.cost_for(usage, state.models())
+        partial = state.usage_is_partial()
+        if partial:
+            usage = Usage.model_validate({**usage.model_dump(), "usage_partial": True})
+        if partial:
+            # Some call reported tokens and some reported none, so the totals
+            # describe part of the run. Pricing them would state a confident
+            # number for work that was only partly observed, and a cost that is
+            # merely lower than the truth is worse than no cost at all: nothing
+            # marks it as wrong.
+            cost: Cost = Cost(
+                usd=None,
+                pricing_version=self.pricing.version,
+                unknown_reason="usage_missing",
+            )
+        else:
+            cost = self.pricing.cost_for(usage, state.models())
         output = state.output
         redacted_structured = (
             self.redact(output.structured) if output.structured is not None else None

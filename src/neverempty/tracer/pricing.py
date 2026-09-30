@@ -120,10 +120,21 @@ class Pricing(BaseModel):
         output_tokens = usage.output_tokens or 0
         cached = usage.cached_input_tokens or 0
 
+        # ``cached`` is a subset of ``input_tokens`` (see ``Usage``), so the
+        # fresh tokens are what remains after it. Adding the two charged the
+        # cached tokens twice -- once at the full input rate inside
+        # ``input_tokens`` and once at the cached rate -- which overstated a
+        # heavily cached OpenAI call by about 3.9x, silently.
+        fresh = input_tokens - cached
+        cached_rate = (
+            price.cached_input_usd_per_mtok
+            if price.cached_input_usd_per_mtok is not None
+            else price.input_usd_per_mtok
+        )
         total = (
-            input_tokens * price.input_usd_per_mtok
+            fresh * price.input_usd_per_mtok
+            + cached * cached_rate
             + output_tokens * price.output_usd_per_mtok
-            + cached * (price.cached_input_usd_per_mtok or price.input_usd_per_mtok)
         ) / TOKENS_PER_MTOK
 
         return Cost(usd=total, pricing_version=self.version, unknown_reason=None)
