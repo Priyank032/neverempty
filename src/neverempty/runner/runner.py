@@ -489,7 +489,12 @@ class Runner:
             # judge-derived ones are excluded from the gate.
             status = "degraded"
 
-        durations = sorted(outcome.duration_ms for outcome in outcomes)
+        # Only measured cases. A case whose trace never materialized has no
+        # duration, and counting it as 0 would publish a percentile lower than
+        # any latency the run actually observed.
+        durations = sorted(
+            outcome.duration_ms for outcome in outcomes if outcome.duration_ms is not None
+        )
         known_costs = [o.cost_usd for o in outcomes if o.cost_usd is not None]
 
         seed = self.seed if self.seed is not None else 0

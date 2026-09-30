@@ -13,6 +13,7 @@ import pytest
 from pydantic import BaseModel
 
 from neverempty import Empty, Err, Ok, ToolResult
+from neverempty.core.results import ERROR_NOTE
 
 
 def _roundtrip(result: ToolResult[Any]) -> dict[str, Any]:
@@ -263,3 +264,41 @@ class TestTypeAliasUsability:
         assert result.fault_injected is True
         assert "fault_injected" not in result.to_json()
         assert "fault_injected" not in result.to_model()
+
+
+class TestUnserializableValuesAreRefused:
+    """A value JSON cannot represent must not reach the model as ``ok``.
+
+    ``json.dumps(default=str)`` turned an arbitrary object into its ``repr``,
+    so the model read ``"<app.Row object at 0x7f...>"`` labelled ``status:
+    ok``. That is doc row 992's failure mode exactly: the Python type looks
+    fine and the model-facing text is garbage. A serialization failure is a
+    tool failure, so it renders as one.
+    """
+
+    def test_an_unserializable_value_renders_as_an_error(self) -> None:
+        class Row:
+            pass
+
+        rendered = json.loads(Ok(value={"obj": Row()}).to_model())
+        assert rendered["status"] == "error"
+        assert rendered["kind"] == "validation"
+        # No memory address anywhere in what the model reads.
+        assert "0x" not in json.dumps(rendered)
+
+    def test_the_note_still_forbids_claiming_absence(self) -> None:
+        class Row:
+            pass
+
+        rendered = json.loads(Ok(value=Row()).to_model())
+        assert rendered["note"] == ERROR_NOTE
+
+    def test_ordinary_json_types_are_untouched(self) -> None:
+        values: list[Any] = [[], {}, 0, "", False, None, [{"a": 1}], 1.5]
+        for value in values:
+            rendered = json.loads(Ok(value=value).to_model())
+            assert rendered["status"] == "ok", value
+            assert rendered["data"] == value, value
+
+    def test_to_json_still_round_trips_a_serializable_value(self) -> None:
+        assert json.loads(Ok(value=[1, 2]).to_json())["value"] == [1, 2]

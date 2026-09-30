@@ -502,8 +502,28 @@ def _add_readme(subcommands: Any) -> None:
 def _readme(args: argparse.Namespace) -> int:
     from neverempty.report.readme import load_reports, render_readme_numbers
 
+    # Expanded here for the same reason ``validate`` does it: the README's own
+    # documented command is a glob, and PowerShell and cmd do not expand it, so
+    # the pattern reached ``open()`` verbatim and died on [Errno 22].
+    if args.reports:
+        expanded = expand_paths(args.reports)
+        if not expanded:
+            # stderr, not ``_fail``: this command's output is piped into a
+            # README, so an error on stdout would be published as the Numbers
+            # section. Rendering an empty section from an empty match would
+            # publish "no numbers" as though it were a measured result.
+            print(
+                f"no files matched: {' '.join(args.reports)}; check the path "
+                f"or the glob. An empty match is not a pass.",
+                file=sys.stderr,
+            )
+            return EXIT_INVALID
+        reports: list[str] | list[Path] = expanded
+    else:
+        reports = []
+
     try:
-        loaded = load_reports(args.reports)
+        loaded = load_reports(reports)
     except OSError as exc:
         print(f"cannot read a report: {exc}", file=sys.stderr)
         return EXIT_INVALID

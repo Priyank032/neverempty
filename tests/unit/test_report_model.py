@@ -142,3 +142,32 @@ class TestPersistence:
         """A report that never finished must not read as a clean run."""
         assert report().status == "incomplete"
         assert report().complete is False
+
+
+class TestAnUnmeasuredDurationIsNullNotZero:
+    """``CaseOutcome.duration_ms`` defaulted to 0, so a case whose trace was
+    never produced reported 0 ms -- indistinguishable from a case that really
+    finished in under a millisecond.
+
+    That is the library's own rule ("missing must never look like zero")
+    broken inside its own report model, and it is not only cosmetic: the
+    fabricated 0 entered the sorted sample and dragged p50 down, so the
+    published latency described a run that never happened. ``Costs`` directly
+    above it in the same constructor already gets this right, reporting
+    ``None`` with an ``unknown_count`` rather than a zero.
+    """
+
+    def test_the_default_is_none(self) -> None:
+        assert CaseOutcome(case_id="c-0001", repeat=0).duration_ms is None
+
+    def test_a_measured_zero_is_preserved(self) -> None:
+        """A real sub-millisecond case records 0, and 0 must stay a measurement."""
+        assert CaseOutcome(case_id="c-0001", repeat=0, duration_ms=0).duration_ms == 0
+
+    def test_a_negative_duration_is_refused(self) -> None:
+        with pytest.raises(ValidationError):
+            CaseOutcome(case_id="c-0001", repeat=0, duration_ms=-1)
+
+    def test_an_unmeasured_duration_round_trips_as_null(self) -> None:
+        outcome = CaseOutcome(case_id="c-0001", repeat=0)
+        assert CaseOutcome.model_validate_json(outcome.model_dump_json()).duration_ms is None

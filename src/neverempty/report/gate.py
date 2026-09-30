@@ -202,11 +202,43 @@ def _pairing_problem(base: Report, candidate: Report, *, allow_model_change: boo
 
 
 def _incomplete_problem(base: Report, candidate: Report) -> str:
+    """Refuse an incomplete run, and refuse one that only claims to be complete.
+
+    A report is a committed artifact handed between CI jobs, and ``split_hash``
+    and ``config_hash`` are null unless a runner filled them, so ``complete``
+    has no integrity check behind it. A hand-edit or a mangled merge that sets
+    it true made the gate compare unscored pairs against each other and count
+    them as non-regressions -- a pass, exit 0, on a run that scored two cases
+    out of five. So the flag is checked against the outcomes it summarizes
+    instead of being believed.
+    """
     for label, report in (("baseline", base), ("candidate", candidate)):
         if not report.complete:
             return (
                 f"{label} report is not complete (status={report.status!r}); "
                 f"an incomplete run is a failure, never a smaller sample"
+            )
+        # An unscored ``must_pass`` case is left to ``_must_pass_failures``,
+        # which exits 2: a safety requirement the harness could not prove is a
+        # failure on the merits, not an infrastructure complaint. The doc scopes
+        # code 4 to a report that *declares* complete=false, so downgrading a
+        # must_pass failure to 4 would hide the more serious verdict.
+        must_pass_ids = {o.case_id for o in report.outcomes if o.must_pass}
+        unscored = [cid for cid in report.unscored_ids() if cid not in must_pass_ids]
+        if unscored:
+            shown = ", ".join(unscored[:5])
+            more = f" and {len(unscored) - 5} more" if len(unscored) > 5 else ""
+            return (
+                f"{label} report says complete=true but {len(unscored)} case(s) "
+                f"have no scored outcome ({shown}{more}); the report contradicts "
+                f"itself, so no verdict is computed from it"
+            )
+        claimed = report.counts.unscored
+        if claimed and not must_pass_ids:
+            return (
+                f"{label} report says complete=true but counts.unscored is "
+                f"{claimed}; the report contradicts itself, so no verdict is "
+                f"computed from it"
             )
     return ""
 

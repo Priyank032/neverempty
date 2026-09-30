@@ -97,11 +97,29 @@ def classify(exc: BaseException) -> Err:
     )
 
 
+def safe_str(exc: BaseException) -> str:
+    """``str(exc)`` for an exception that may not survive being stringified.
+
+    A wrapped dependency can raise an exception whose ``__str__`` itself
+    raises -- ORM and gRPC error types that build their message lazily do this
+    when the failure interrupted whatever the message needed. Letting that
+    escape breaks the wrapper's one contract: a tool failure always becomes a
+    typed failure. The type name is a worse message than the real one and a far
+    better one than an unhandled ``RuntimeError`` from inside the guard.
+    """
+    try:
+        return str(exc).strip()
+    except BaseException as inner:
+        if is_uncatchable(inner):
+            raise
+        return ""
+
+
 def _message_for(exc: BaseException, status: int | None) -> str:
-    text = str(exc).strip() or type(exc).__name__
+    text = safe_str(exc) or type(exc).__name__
     if status is not None and str(status) not in text:
         return f"HTTP {status}: {text}"
     return text
 
 
-__all__ = ["UNCATCHABLE", "ClassifyError", "classify", "is_uncatchable"]
+__all__ = ["UNCATCHABLE", "ClassifyError", "classify", "is_uncatchable", "safe_str"]

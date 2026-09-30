@@ -790,3 +790,127 @@ class TestTruncatedFaultOnNonOk:
 
         assert isinstance(result, Empty)
         assert result.fault_injected is True
+
+
+class TestPredicateAndClassificationHardening:
+    """The wrapper's contract is "-> Err, never raises". These are the paths
+    where it broke: an exception whose ``__str__`` raises, and a predicate that
+    returns a non-bool instead of raising.
+
+    Doc line 675 fixes the principle for a predicate that *raises*. A predicate
+    that returns a truthy string is the same class of bug one step over, and
+    coercing it by truthiness contradicts principle 1 inside the very function
+    that exists to enforce principle 1.
+    """
+
+    async def test_an_exception_whose_str_raises_still_becomes_an_err(self) -> None:
+        class BadStrError(Exception):
+            def __str__(self) -> str:
+                raise RuntimeError("boom in __str__")
+
+        @tool(never_empty=True)
+        async def fragile() -> str:
+            raise BadStrError()
+
+        result = await fragile()
+        assert isinstance(result, Err)
+        assert result.kind == "exception"
+        # The type name is the fallback, because the message was unobtainable.
+        assert "BadStrError" in result.message
+
+    async def test_a_repr_that_raises_still_reports_ambiguous_empty(self) -> None:
+        """The ambiguous-empty message interpolates the value's repr.
+
+        ``_is_empty_looking`` matches concrete container types, so reaching this
+        path needs a real empty container whose ``__repr__`` is broken -- an
+        ORM result wrapper subclassing ``dict`` is the realistic shape. The
+        diagnostic must still name the tool rather than crash while describing
+        the problem.
+        """
+
+        class BadRepr(dict[str, int]):
+            def __repr__(self) -> str:
+                raise RuntimeError("boom in __repr__")
+
+        @tool()
+        async def fragile() -> Any:
+            return BadRepr()
+
+        with pytest.raises(AmbiguousEmptyError) as caught:
+            await fragile()
+        assert "fragile" in str(caught.value)
+        assert "unreprable BadRepr" in str(caught.value)
+
+    async def test_empty_when_returning_a_truthy_string_is_refused(self) -> None:
+        """``empty_when=lambda v: "no"`` must not mean empty."""
+
+        @tool(empty_when=lambda value: "no")  # type: ignore[arg-type,return-value]
+        async def rows() -> list[int]:
+            return [1, 2, 3]
+
+        result = await rows()
+        assert isinstance(result, Err)
+        assert result.kind == "validation"
+        assert "empty_when" in result.message
+        assert "bool" in result.message
+
+    async def test_empty_when_returning_a_falsy_non_bool_is_also_refused(self) -> None:
+        """Refusal is about the type, not about which way it would have gone."""
+
+        @tool(empty_when=lambda value: 0)  # type: ignore[arg-type,return-value]
+        async def rows() -> list[int]:
+            return [1, 2, 3]
+
+        result = await rows()
+        assert isinstance(result, Err)
+        assert result.kind == "validation"
+
+    async def test_truncated_when_returning_a_non_bool_is_refused(self) -> None:
+        @tool(truncated_when=lambda value: "yes", never_empty=True)  # type: ignore[arg-type,return-value]
+        async def rows() -> list[int]:
+            return [1, 2, 3]
+
+        result = await rows()
+        assert isinstance(result, Err)
+        assert result.kind == "validation"
+        assert "truncated_when" in result.message
+
+    async def test_a_real_bool_predicate_still_works(self) -> None:
+        """numpy.bool_ and friends are not bool, so guard against overreach."""
+
+        @tool(empty_when=lambda value: len(value) == 0)
+        async def rows() -> list[int]:
+            return []
+
+        assert isinstance(await rows(), Empty)
+
+    async def test_a_str_that_raises_cancelled_error_still_propagates(self) -> None:
+        """Non-negotiable: CancelledError is never converted into a result.
+
+        The guard around ``str(exc)`` must not become a place where
+        cancellation gets swallowed, so it re-raises an uncatchable rather
+        than falling back to the type name.
+        """
+
+        class CancelOnStrError(Exception):
+            def __str__(self) -> str:
+                raise asyncio.CancelledError
+
+        @tool(never_empty=True)
+        async def fragile() -> str:
+            raise CancelOnStrError()
+
+        with pytest.raises(asyncio.CancelledError):
+            await fragile()
+
+    async def test_a_str_that_raises_keyboard_interrupt_still_propagates(self) -> None:
+        class InterruptOnStrError(Exception):
+            def __str__(self) -> str:
+                raise KeyboardInterrupt
+
+        @tool(never_empty=True)
+        async def fragile() -> str:
+            raise InterruptOnStrError()
+
+        with pytest.raises(KeyboardInterrupt):
+            await fragile()

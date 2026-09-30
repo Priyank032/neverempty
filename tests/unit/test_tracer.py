@@ -1004,3 +1004,76 @@ class TestArgumentBinding:
             "arg2": 3,
             "z": 4,
         }
+
+
+class TestRecordUsageValidatesTokenCounts:
+    """Token counts are validated where they enter, not where they are summed.
+
+    ``record_usage`` is typed ``int | None`` but passed its arguments straight
+    into the accumulator, so a string got as far as ``int + str`` and surfaced
+    as a bare ``TypeError`` from inside the tracer -- far from the call that
+    caused it. Usage parsed out of a provider's JSON arrives as a string
+    routinely, so this is an ordinary integration mistake, and it deserves the
+    same ``ValidationError`` that a negative or fractional count already gets.
+    """
+
+    async def test_a_string_token_count_is_refused_at_the_call(self) -> None:
+        tracer, _sink = build()
+        async with tracer.run():
+            with (
+                tracer.span("llm", name="rerank") as span,
+                pytest.raises(ValueError, match="input_tokens"),
+            ):
+                span.record_usage(
+                    model="gpt-4o",
+                    input_tokens="1000",  # type: ignore[arg-type]
+                    output_tokens=500,
+                )
+
+    async def test_a_float_token_count_is_refused(self) -> None:
+        tracer, _sink = build()
+        async with tracer.run():
+            with tracer.span("llm", name="rerank") as span, pytest.raises(ValueError):
+                span.record_usage(
+                    model="gpt-4o",
+                    input_tokens=10.5,  # type: ignore[arg-type]
+                )
+
+    async def test_a_negative_token_count_is_refused(self) -> None:
+        tracer, _sink = build()
+        async with tracer.run():
+            with tracer.span("llm", name="rerank") as span, pytest.raises(ValueError):
+                span.record_usage(model="gpt-4o", input_tokens=-1)
+
+    async def test_a_refused_call_records_nothing(self) -> None:
+        """A rejected count must not land half-recorded."""
+        tracer, sink = build()
+        async with tracer.run():
+            with tracer.span("llm", name="rerank") as span, pytest.raises(ValueError):
+                span.record_usage(
+                    model="gpt-4o",
+                    input_tokens=5,
+                    output_tokens="500",  # type: ignore[arg-type]
+                )
+        usage = sink.traces[0].usage
+        assert usage.input_tokens is None
+        assert usage.output_tokens is None
+
+    async def test_real_integers_and_none_still_work(self) -> None:
+        tracer, sink = build()
+        async with tracer.run():
+            with tracer.span("llm", name="a") as span:
+                span.record_usage(model="gpt-4o", input_tokens=11, output_tokens=5)
+            with tracer.span("llm", name="b") as span:
+                span.record_usage(model="gpt-4o", input_tokens=None, output_tokens=None)
+        usage = sink.traces[0].usage
+        assert usage.input_tokens == 11
+        assert usage.output_tokens == 5
+
+    async def test_a_reported_zero_is_still_a_measurement(self) -> None:
+        tracer, sink = build()
+        async with tracer.run():
+            with tracer.span("llm", name="a") as span:
+                span.record_usage(model="gpt-4o", input_tokens=0, output_tokens=0)
+        assert sink.traces[0].usage.input_tokens == 0
+        assert sink.traces[0].usage.usage_missing is False

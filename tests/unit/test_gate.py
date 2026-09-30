@@ -493,3 +493,75 @@ class TestGateResultSerialization:
         for base, candidate, expected in pairs:
             result = gate(base, candidate, GateConfig())
             assert result.exit_code == expected
+
+
+class TestTheGateVerifiesItsInputRatherThanTrustingIt:
+    """A report is a committed artifact handed between CI jobs, so the gate
+    must not take ``complete: true`` on faith.
+
+    Flipping that one flag by hand -- or a merge mangling it -- made the gate
+    pass a run where three of five cases never scored: the unscored pairs
+    compared unscored-vs-unscored and counted as non-regressions. With
+    ``split_hash`` and ``config_hash`` null on real runs there is no other
+    integrity check, so the flag has to be checked against the outcomes it
+    claims to summarize. ``Report.unscored_ids()`` already computes exactly
+    that; the gate simply was not asking.
+    """
+
+    def _tampered(self) -> Report:
+        """A report whose flags claim five scored cases and whose outcomes show two."""
+        truthful = report(passes=2, unscored=3, complete=False, status="incomplete")
+        return truthful.model_copy(
+            update={
+                "complete": True,
+                "status": "ok",
+                "counts": truthful.counts.model_copy(update={"scored": 5, "unscored": 0}),
+            }
+        )
+
+    def test_compare_refuses_a_report_whose_complete_flag_contradicts_its_outcomes(
+        self,
+    ) -> None:
+        result = compare(report(passes=5), self._tampered())
+        assert result.refused
+        assert "no scored outcome" in result.refusal_reason
+
+    def test_the_gate_returns_exit_four_not_pass(self) -> None:
+        verdict = gate(report(passes=5), self._tampered(), config=GateConfig())
+        assert verdict.exit_code == 4
+        assert verdict.verdict != "pass"
+
+    def test_the_refusal_names_the_cases_that_did_not_score(self) -> None:
+        verdict = gate(report(passes=5), self._tampered(), config=GateConfig())
+        assert "3" in verdict.reason
+
+    def test_a_truthful_incomplete_report_is_still_refused_the_same_way(self) -> None:
+        """The existing behaviour must not regress."""
+        verdict = gate(
+            report(passes=5),
+            report(passes=2, unscored=3, complete=False, status="incomplete"),
+            config=GateConfig(),
+        )
+        assert verdict.exit_code == 4
+
+    def test_an_honest_complete_report_still_passes(self) -> None:
+        verdict = gate(report(passes=5), report(passes=5), config=GateConfig())
+        assert verdict.exit_code == 0
+
+    def test_a_report_with_unscored_cases_it_admits_to_is_refused(self) -> None:
+        """``complete`` false is the honest encoding, and already refused."""
+        honest = report(passes=2, unscored=3, complete=False, status="incomplete")
+        assert honest.unscored_ids()
+        assert compare(report(passes=5), honest).refused
+
+    def test_a_counts_field_contradicting_complete_is_also_refused(self) -> None:
+        """The other half of the contradiction: outcomes all scored, but
+        ``counts.unscored`` claims otherwise. Either way the report disagrees
+        with itself, and no verdict is computed from it."""
+        truthful = report(passes=5)
+        tampered = truthful.model_copy(
+            update={"counts": truthful.counts.model_copy(update={"unscored": 3})}
+        )
+        result = compare(report(passes=5), tampered)
+        assert result.refused
+        assert "counts.unscored" in result.refusal_reason

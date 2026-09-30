@@ -101,6 +101,29 @@ class SpanHandle:
         Token counts come from provider usage fields only. Passing ``None``
         records null, never a zero and never an estimate.
         """
+        # Validated before anything is written. The counts were typed
+        # ``int | None`` but never checked, so a string parsed out of a
+        # provider's JSON reached ``int + str`` inside the accumulator and
+        # surfaced as a bare TypeError from a stack frame the caller never
+        # entered. Constructing ``Usage`` here reuses the same ``ge=0``
+        # integer rules that already rejected negatives and floats, and it
+        # runs first so a refused call cannot leave the span half-populated.
+        # ``strict=True``: pydantic's default lax mode would coerce "1000" to
+        # 1000, which silently accepts a provider field that was never parsed.
+        # The next string along is "1,000" or "unknown", and a count guessed
+        # from either is an estimate wearing a measurement's label.
+        validated = Usage.model_validate(
+            {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cached_input_tokens": cached_input_tokens,
+            },
+            strict=True,
+        )
+        input_tokens = validated.input_tokens
+        output_tokens = validated.output_tokens
+        cached_input_tokens = validated.cached_input_tokens
+
         self.attributes["gen_ai.request.model"] = model
         if resolved_model is not None:
             self.attributes["gen_ai.response.model"] = resolved_model

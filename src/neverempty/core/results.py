@@ -97,7 +97,21 @@ class Ok(_Result, Generic[T]):
         }
         if self.truncated:
             payload["note"] = TRUNCATED_NOTE
-        return json.dumps(payload, ensure_ascii=False, default=str)
+        try:
+            return json.dumps(payload, ensure_ascii=False, allow_nan=False)
+        except (TypeError, ValueError):
+            # No ``default=str``. Coercing an unserializable value to its repr
+            # sent the model ``"<app.Row object at 0x7f...>"`` under
+            # ``status: ok`` -- a non-result wearing a success label, which is
+            # the bug this library exists to prevent, one layer down. A value
+            # JSON cannot represent is a failure of the tool, so it renders as
+            # one, and the note still forbids claiming that no data exists.
+            return Err(
+                kind="validation",
+                message="tool result is not JSON-serializable",
+                retryable=False,
+                cause="TypeError",
+            ).to_model()
 
 
 class Empty(_Result):

@@ -221,3 +221,35 @@ deleting a scorer would look like passing.
   numbers mean anything.
 - [Reading a report](reading-a-report.md) — what each number is allowed to claim.
 - [Architecture](architecture.md) — why the pieces are shaped this way.
+
+### Capping payload size
+
+There is **no default size cap**. `truncated` stays `false` until a
+`truncated_when` predicate says otherwise, so a runaway tool can return a
+megabyte and it reaches the model whole. Declare the cap you want:
+
+```python
+import json
+
+CAP_BYTES = 8_000
+
+
+@tool(
+    never_empty=True,
+    truncated_when=lambda rows: len(json.dumps(rows, default=str)) > CAP_BYTES,
+)
+async def search_jobs(city: str) -> list[dict]: ...
+```
+
+The predicate flags the result; it does not shrink it, because dropping rows
+silently is the sibling bug — the model reads a short list as the whole list.
+Slice inside the tool and let `truncated_when` label what you did:
+
+```python
+@tool(never_empty=True, truncated_when=lambda rows: len(rows) >= 100)
+async def search_jobs(city: str) -> list[dict]:
+    return (await db.query(city))[:100]
+```
+
+`to_model()` then adds an explicit note telling the model the result is
+incomplete and not to state a total.

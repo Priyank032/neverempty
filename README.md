@@ -62,16 +62,19 @@ async def flaky_search(city: str) -> list[dict]:
 The three outcomes stay distinguishable all the way into the prompt. This is
 the whole point of the library, and it is what `to_model()` renders:
 
+`to_model()` returns the **JSON string** to put in the tool message, not a
+dict, so it goes straight into the message body with no further encoding:
+
 ```python
->>> (await search_jobs(city="Pune")).to_model()
-{"status": "ok", "data": [{"title": "Backend Engineer", "city": "Pune"}], "truncated": false}
+print((await search_jobs(city="Pune")).to_model())
+# {"status": "ok", "data": [{"title": "Backend Engineer", "city": "Pune"}], "truncated": false}
 
->>> (await search_jobs(city="Nowhere")).to_model()
-{"status": "empty", "note": "The query succeeded and returned no matching records."}
+print((await search_jobs(city="Nowhere")).to_model())
+# {"status": "empty", "note": "The query succeeded and returned no matching records."}
 
->>> (await flaky_search(city="Pune")).to_model()
-{"status": "error", "kind": "timeout", "note": "The tool failed. You do not know
- whether matching data exists. Do not say that no data exists."}
+print((await flaky_search(city="Pune")).to_model())
+# {"status": "error", "kind": "timeout", "note": "The tool failed. You do not know
+#  whether matching data exists. Do not say that no data exists."}
 ```
 
 A failed call tells the model, in words, not to claim absence. A perfectly typed
@@ -239,6 +242,38 @@ set, so an improvement can never fail a build. At n=210, a real 5-point drop and
 noise are distinguishable; at n=100 they are not, which is why the sample size
 drives the design rather than the reverse.
 
+#### Below ~200 cases, set `floors` or the gate detects almost nothing
+
+Exact one-sided McNemar needs **5 clean pass-to-fail flips** before it can
+reach p < 0.05 at all, because with zero improvements the tail is
+`0.5 ** flips`: four flips give p = 0.0625 and pass. That floor is a property
+of the test, not of your suite, so it does not shrink as `n` shrinks — it just
+becomes a larger share of it:
+
+| Suite size | 4 regressions pass silently | which is |
+| --- | --- | --- |
+| 30 | yes | 13.3 points |
+| 60 | yes | 6.7 points |
+| 100 | yes | 4.0 points |
+| 210 | yes | 1.9 points |
+| 330 | yes | 1.2 points |
+
+This is the test behaving correctly — refusing to call four flips a regression
+is exactly the honesty the gate is for — but on a small suite it means the
+statistical gate alone will not catch a real drop. Set a hard floor, which is
+checked independently of the paired test:
+
+```toml
+[gate]
+floors = { route = 0.95 }
+```
+
+`floors` defaults to empty, so until you set one, a suite under roughly 200
+cases has a regression gate that fires only on large breaks. On 60 cases a
+6.7-point drop passes at exit 0; with `floors = { route = 0.95 }` the same run
+exits 1 and names the metric. Use `must_pass` on individual cases for the
+requirements that must never break regardless of aggregate accuracy.
+
 ### What the renderer refuses to print
 
 Numbers in a README come from a committed report, because the renderer reads
@@ -281,8 +316,13 @@ never becomes a red build on unrelated work.
 
 ## Installation
 
+Not on PyPI yet, so `pip install neverempty` does not work. Install from a
+clone:
+
 ```bash
-pip install neverempty
+git clone https://github.com/Priyank032/neverempty
+cd neverempty
+pip install -e .
 ```
 
 Core depends on `pydantic>=2` and nothing else. Python 3.10 to 3.13.

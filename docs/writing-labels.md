@@ -155,6 +155,94 @@ checks are published. `neverempty readme` enforces that — it will not print th
 The per-language slice earns its place immediately. A judge that is 90% overall
 can be 100% in English and 67% in Hindi, and the aggregate hides it completely.
 
+## The `expect` reference
+
+Every field is optional, and a scorer whose expectation is absent reports
+**not applicable**, never a pass. Each example below is loaded by
+`tests/unit/test_docs_examples.py`, so none of it can drift from the models.
+
+### `route`
+
+```json
+{"route": {"label": "job_search", "acceptable": ["general"]}}
+```
+
+`acceptable` is the lenient set and must not contain `label`; the loader
+refuses it if it does, because strict and lenient accuracy would then be the
+same number.
+
+### `tool_calls`
+
+```json
+{"tool_calls": {"mode": "first", "calls": [{"tool": "db_lookup"}]}}
+```
+
+`mode` is required and picks how strictly the call list is read:
+
+| `mode` | Asserts |
+| --- | --- |
+| `first` | the first tool called is `calls[0]` |
+| `set` | exactly these tools were called, order ignored |
+| `sequence` | these tools, in this order |
+
+`calls` needs at least one entry. Each entry is `{"tool": "<name>", "args":
+{...}}`, and `args` is optional.
+
+### `tool_calls[].args`
+
+Each argument is checked under its own `match` mode:
+
+```json
+{"tool_calls": {"mode": "first", "calls": [
+  {"tool": "search_jobs", "args": {"city": {"match": "exact", "value": "Pune"}}}]}}
+```
+
+| `match` | Compares |
+| --- | --- |
+| `exact` | equality, after JSON round-trip |
+| `normalized` | case-folded and whitespace-stripped |
+| `set` | membership-equal, order and duplicates ignored |
+| `numeric` | numeric equality within `tol` |
+| `regex` | `value` is a pattern, compiled at load time |
+| `present` | the key was passed at all; `value` is ignored |
+| `date` | parsed as a date, so `2026-10-01` equals `2026-10-01T00:00:00Z` |
+
+`tol` is only meaningful with `numeric` and is refused elsewhere, so a
+tolerance can never be silently ignored. A `regex` that does not compile fails
+at load, not mid-run.
+
+### `facts`
+
+```json
+{"facts": [
+  {"id": "f1", "statement": "10 lakh", "match": "contains"},
+  {"id": "f2", "statement": "^Rs ?[0-9]+$", "match": "regex"},
+  {"id": "f3", "statement": "the scheme covers farmers", "match": "judge",
+   "evidence_key": "scheme_text"}]}
+```
+
+`match` is `contains`, `regex` or `judge`. Only `judge` calls a model, and
+`evidence_key` names the evidence it is allowed to read — a judged fact with
+no evidence key is judged against nothing.
+
+Note the two different claim types: a dataset `Fact` has
+`(id, statement, match, evidence_key)`, while the judge's own `Claim` has
+`(id, text)`. The judge receives `Claim`s built from your `Fact`s.
+
+### `items`
+
+Per-item ground truth for generated suites:
+
+```json
+{"items": [{"item_id": "PMKSY", "rule_result": null,
+  "rule_trace": [{"criterion": "land_holding", "result": null,
+                  "missing_field": "land_area"}]}]}
+```
+
+`rule_result` is genuinely three-way: `null` means the rule could not
+evaluate, which is a different claim from `false` ("ineligible") and is the
+case most likely to catch an agent overclaiming.
+
 ## A worked starting point
 
 `evals/nextrole/routing.jsonl` and `evals/nextrole/failure.jsonl` ship with a few

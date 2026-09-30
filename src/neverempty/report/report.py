@@ -58,7 +58,10 @@ class CaseOutcome(BaseModel):
     scorer_errors: dict[str, str] = Field(default_factory=dict)
     """Scorers that raised. The case is unscored for these only."""
     error: TraceError | None = None
-    duration_ms: int = 0
+    duration_ms: int | None = Field(default=None, ge=0)
+    """``None`` when no trace was produced, never 0: an unmeasured case and a
+    sub-millisecond one are different facts, and a fabricated 0 would enter the
+    latency sample and drag p50 below anything that was actually observed."""
     cost_usd: float | None = None
     cost_unknown_reason: str | None = None
     must_pass: bool = False

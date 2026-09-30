@@ -15,7 +15,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Generic, Protocol, TypeVar, cast
 
-from neverempty.core.classify import ClassifyError, classify, is_uncatchable
+from neverempty.core.classify import ClassifyError, classify, is_uncatchable, safe_str
 from neverempty.core.faults import FaultSpec, error_fault_details, next_fault
 from neverempty.core.results import Empty, Err, Ok, ToolResult
 from neverempty.core.stubs import (
@@ -68,13 +68,50 @@ def _is_empty_looking(value: object) -> bool:
     return False
 
 
+def _safe_repr(value: Any) -> str:
+    """``repr(value)`` for a value whose ``__repr__`` may raise.
+
+    Only ever used to build an error message. A diagnostic that crashes while
+    describing the problem replaces a useful failure with a useless one.
+    """
+    try:
+        return repr(value)
+    except BaseException as exc:
+        if is_uncatchable(exc):
+            raise
+        return f"<unreprable {type(value).__name__}>"
+
+
 def _predicate_error(name: str, exc: BaseException) -> Err:
     """A raising predicate is a validation error, never a silent Ok."""
     return Err(
         kind="validation",
-        message=f"{name} predicate raised {type(exc).__name__}: {exc}",
+        message=f"{name} predicate raised {type(exc).__name__}: {safe_str(exc)}",
         retryable=False,
         cause=type(exc).__name__,
+    )
+
+
+def _predicate_type_error(name: str, returned: Any) -> Err:
+    """A predicate that returns a non-bool is refused, not coerced.
+
+    Coercing by truthiness here would contradict principle 1 inside the very
+    function that exists to enforce it: ``empty_when=lambda v: "no"`` returns a
+    truthy string meaning *not* empty, and truthiness would read it as empty and
+    discard a full result. The doc settles the raising case (line 675, "not a
+    silent Ok"); a predicate returning the wrong type is the same bug one step
+    over, so it gets the same answer.
+    """
+    return Err(
+        kind="validation",
+        message=(
+            f"{name} predicate must return a bool, got "
+            f"{type(returned).__name__} ({_safe_repr(returned)}). A non-bool is "
+            f"refused rather than read for truthiness: falsiness is never "
+            f"evidence of absence."
+        ),
+        retryable=False,
+        cause="TypeError",
     )
 
 
@@ -141,11 +178,17 @@ class _ToolSpec:
                 if is_uncatchable(exc):
                     raise
                 return _predicate_error("empty_when", exc)
+            # unreachable to mypy, because the predicate is *annotated*
+            # ``-> bool``. Annotations are not enforced at runtime, and the
+            # callers who trip this are exactly the ones not running a type
+            # checker, so the guard stays.
+            if not isinstance(is_empty, bool):
+                return _predicate_type_error("empty_when", is_empty)  # type: ignore[unreachable]
             if is_empty:
                 return Empty()
         elif not self.never_empty and _is_empty_looking(value):
             message = (
-                f"Tool {self.name!r} returned {value!r} but does not declare what "
+                f"Tool {self.name!r} returned {_safe_repr(value)} but does not declare what "
                 f"empty means. Add empty_when=... if an empty result is a real "
                 f"outcome, or never_empty=True if it is an ordinary value."
             )
@@ -157,11 +200,18 @@ class _ToolSpec:
         truncated = False
         if self.truncated_when is not None:
             try:
-                truncated = bool(self.truncated_when(value))
+                flag = self.truncated_when(value)
             except BaseException as exc:
                 if is_uncatchable(exc):
                     raise
                 return _predicate_error("truncated_when", exc)
+            # unreachable to mypy, because the predicate is *annotated*
+            # ``-> bool``. Annotations are not enforced at runtime, and the
+            # callers who trip this are exactly the ones not running a type
+            # checker, so the guard stays.
+            if not isinstance(flag, bool):
+                return _predicate_type_error("truncated_when", flag)  # type: ignore[unreachable]
+            truncated = flag
 
         return Ok(value=value, truncated=truncated)
 

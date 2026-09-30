@@ -134,3 +134,59 @@ class TestCheck:
         if not readme.exists():  # pragma: no cover - defensive
             pytest.skip("README.md not found")
         assert main(["readme", "--check", str(readme)]) == 0
+
+
+class TestReadmeExpandsGlobsLikeValidateDoes:
+    """``readme`` took its paths raw while ``validate`` expanded them.
+
+    ``expand_paths`` exists precisely because "the shell has usually expanded
+    these already, but not on Windows and not when a pattern is quoted", and
+    the README's own documented command is a glob. On PowerShell and cmd --
+    the platform this was developed on -- it reached ``open()`` verbatim and
+    failed with a raw ``[Errno 22] Invalid argument``, so the documented
+    workflow could not be run at all.
+    """
+
+    def test_a_glob_matching_several_reports_is_expanded(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        reports = tmp_path / "reports"
+        reports.mkdir()
+        build(reports / "a.json")
+        build(reports / "b.json")
+
+        code = main(["readme", str(reports / "*.json")])
+        assert code == 0
+        assert "route" in capsys.readouterr().out
+
+    def test_a_glob_matching_nothing_is_refused_not_treated_as_empty(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """An empty match must never render an empty Numbers section: that
+        would publish "no numbers" as though it were a measured result."""
+        code = main(["readme", str(tmp_path / "nothing" / "*.json")])
+        assert code != 0
+        assert "no files matched" in capsys.readouterr().err
+
+    def test_a_literal_path_still_works(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        build(tmp_path / "one.json")
+        assert main(["readme", str(tmp_path / "one.json")]) == 0
+        assert "route" in capsys.readouterr().out
+
+    def test_a_missing_literal_path_names_the_file(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        code = main(["readme", str(tmp_path / "absent.json")])
+        assert code != 0
+        assert "absent.json" in capsys.readouterr().err
+
+    def test_check_mode_also_expands(self, tmp_path: Path) -> None:
+        reports = tmp_path / "reports"
+        reports.mkdir()
+        build(reports / "a.json")
+        target = tmp_path / "README.md"
+        target.write_text(f"# T\n\n{BEGIN_MARKER}\nstale\n{END_MARKER}\n", encoding="utf-8")
+        # Reaches the drift comparison rather than dying on the glob.
+        assert main(["readme", str(reports / "*.json"), "--check", str(target)]) != 0
