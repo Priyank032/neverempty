@@ -38,6 +38,7 @@ from neverempty.dataset.loader import Dataset
 from neverempty.metrics.aggregate import (
     build_confusion,
     build_metrics,
+    count_crashed,
     count_unstable,
 )
 from neverempty.report.report import (
@@ -277,8 +278,8 @@ class Runner:
                 outcomes.append(outcome)
                 if trace is not None:
                     traces.append(trace)
-                if outcome.cost_usd is not None:
-                    spent.add(outcome.cost_usd)
+                # Null costs are passed too: an unknown cost is not a free one.
+                spent.add(outcome.cost_usd)
 
         tasks = [asyncio.create_task(one(case, repeat)) for case, repeat in jobs]
         try:
@@ -526,6 +527,7 @@ class Runner:
                 scored=len(scored_ids),
                 unscored=unscored,
                 unstable=count_unstable(outcomes),
+                crashed=count_crashed(outcomes),
             ),
             metrics=build_metrics(outcomes, seed=seed, scorer_names=scorer_names),
             outcomes=outcomes,
@@ -622,18 +624,40 @@ class _Budget:
     is exactly the missing-versus-zero bug, in the budget.
     """
 
-    __slots__ = ("cap", "spent")
+    __slots__ = ("cap", "spent", "unknown")
 
     def __init__(self, cap: float | None) -> None:
         self.cap = cap
         self.spent = 0.0
+        self.unknown = 0
 
-    def add(self, amount: float) -> None:
-        self.spent += amount
+    def add(self, amount: float | None) -> None:
+        """Record one case's cost, known or not.
+
+        The caller previously skipped nulls entirely, so with an unpriced model
+        the budget counted nothing and never fired -- the class's own docstring
+        named that bug and the call site reintroduced it.
+        """
+        if amount is None:
+            self.unknown += 1
+        else:
+            self.spent += amount
+
+    @property
+    def unenforceable(self) -> bool:
+        """A cap was set and at least one case's cost could not be computed.
+
+        Spending is then unbounded below the cap: a run can burn 50M tokens on
+        an unpriced model and stay under any budget, because none of it counts.
+        Refusing is the honest answer -- running without a cap is a choice, but
+        believing you have one that is not there is the bug this library exists
+        to prevent, pointed at the wallet.
+        """
+        return self.cap is not None and self.unknown > 0
 
     @property
     def exhausted(self) -> bool:
-        return self.cap is not None and self.spent >= self.cap
+        return self.cap is not None and (self.spent >= self.cap or self.unknown > 0)
 
 
 def _fault_profile(dataset: Dataset) -> str | None:

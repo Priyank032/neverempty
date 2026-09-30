@@ -36,6 +36,7 @@
   },
   "counts": {
     "cases": 12,
+    "crashed": 0,
     "repeats": 1,
     "scored": 12,
     "unscored": 0,

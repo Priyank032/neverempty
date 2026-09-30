@@ -204,6 +204,25 @@ def render_markdown(report: Report) -> str:
         "",
     ]
 
+    if report.status == "aborted_budget" and report.costs.unknown_count:
+        lines += [
+            f"**Aborted: the cost cap of ${report.costs.budget_usd} could not be "
+            f"enforced.** {report.costs.unknown_count} case(s) had an unknown "
+            f"cost, so spending against the cap was unmeasurable. Add the model "
+            f"to the pricing table, or drop `max_cost_usd` to run without a cap.",
+            "",
+        ]
+
+    if counts.crashed:
+        total_repeats = counts.cases * counts.repeats
+        share = f" ({counts.crashed / total_repeats:.0%} of repeats)" if total_repeats else ""
+        lines += [
+            f"**{counts.crashed} repeat(s) crashed before producing an answer"
+            f"{share}.** Every metric below is measured over the repeats that "
+            f"ran, so it describes less work than the run attempted.",
+            "",
+        ]
+
     unscored = report.unscored_ids()
     if unscored:
         shown = ", ".join(f"`{case_id}`" for case_id in unscored[:20])

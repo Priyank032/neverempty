@@ -80,6 +80,14 @@ class Counts(BaseModel):
     scored: int = 0
     unscored: int = 0
     unstable: int = 0
+    crashed: int = 0
+    """Repeats whose target raised before producing an answer.
+
+    A crashed repeat leaves the denominator -- it cannot be scored as a wrong
+    answer -- but without this count that rule let a run where 10 of 15 repeats
+    crashed report ``complete=True``, ``status="ok"`` and a metric of 1.0. The
+    surviving repeats were measured honestly; what was missing was any signal
+    that most of the run never happened."""
 
 
 class Metric(BaseModel):

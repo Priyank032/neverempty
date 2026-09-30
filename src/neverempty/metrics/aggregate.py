@@ -183,6 +183,18 @@ def count_unstable(outcomes: Sequence[CaseOutcome]) -> int:
     for repeats in _by_case(outcomes).values():
         if len(repeats) < 2:
             continue
+
+        # Repeats that disagree about whether the target *ran at all* are the
+        # starkest instability there is: the same input produced an answer once
+        # and an exception another time. Counting only disagreement about the
+        # answer let a case with one success and two crashes look stable.
+        # Consistent failure stays stable, because it is consistent -- such a
+        # case is unscored, which the report says separately.
+        crashed = {repeat.error is not None for repeat in repeats}
+        if len(crashed) > 1:
+            unstable += 1
+            continue
+
         names = {name for repeat in repeats for name in repeat.scores}
         for name in names:
             verdicts = {repeat.scores[name].passed for repeat in repeats if name in repeat.scores}
@@ -190,6 +202,11 @@ def count_unstable(outcomes: Sequence[CaseOutcome]) -> int:
                 unstable += 1
                 break
     return unstable
+
+
+def count_crashed(outcomes: Sequence[CaseOutcome]) -> int:
+    """Repeats whose target raised before producing an answer."""
+    return sum(1 for outcome in outcomes if outcome.error is not None)
 
 
 def case_verdicts(
@@ -264,5 +281,6 @@ __all__ = [
     "build_metrics",
     "case_verdicts",
     "collapsed_scores",
+    "count_crashed",
     "count_unstable",
 ]
