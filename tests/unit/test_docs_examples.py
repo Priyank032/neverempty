@@ -443,3 +443,85 @@ class TestTheReadmeQuickstartIsReal:
     def test_it_says_labels_are_the_users_to_write(self) -> None:
         readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
         assert "yours to write" in readme
+
+
+class TestTheLabellingPromptIsAccurate:
+    """The prompt handed to another agent has to describe the real loader.
+    A wrong rule there wastes a labelling session and lands silently."""
+
+    PROMPT = DOCS / "prompts" / "write-labels.md"
+
+    def test_the_prompt_exists(self) -> None:
+        assert self.PROMPT.is_file()
+
+    def test_its_routing_example_loads(self, tmp_path: Path) -> None:
+        case = {
+            "schema_version": 1,
+            "id": "nr-route-0001",
+            "suite": "nextrole.routing",
+            "split": "test",
+            "input": {
+                "messages": [{"role": "user", "content": "any backend python roles in Pune?"}]
+            },
+            "expect": {"route": {"label": "job_search"}},
+            "provenance": {
+                "method": "llm_drafted_human_verified",
+                "labeller": "REPLACE_ME",
+                "labelled_at": "2026-10-02",
+                "note": "drafted by Claude Code, verified by hand",
+            },
+        }
+        path = tmp_path / "r.jsonl"
+        path.write_text(json.dumps(case) + "\n", encoding="utf-8")
+        assert len(Dataset.load(path, split="test")) == 1
+
+    def test_its_fault_example_loads(self, tmp_path: Path) -> None:
+        case = {
+            "schema_version": 1,
+            "id": "nr-fault-0001",
+            "suite": "nextrole.failure",
+            "split": "test",
+            "input": {"messages": [{"role": "user", "content": "any python jobs?"}]},
+            "faults": [{"tool": "search_jobs", "kind": "timeout", "after_calls": 0}],
+            "expect": {"route": {"label": "job_search"}},
+            "provenance": {
+                "method": "llm_drafted_human_verified",
+                "labeller": "REPLACE_ME",
+                "labelled_at": "2026-10-02",
+            },
+        }
+        path = tmp_path / "f.jsonl"
+        path.write_text(json.dumps(case) + "\n", encoding="utf-8")
+        assert len(Dataset.load(path, split="test")) == 1
+
+    def test_every_fault_kind_it_lists_is_real(self) -> None:
+        from neverempty.dataset.case import FaultKind
+
+        text = self.PROMPT.read_text(encoding="utf-8")
+        for kind in get_args(FaultKind):
+            assert f"`{kind}`" in text, kind
+
+    def test_the_provenance_method_it_uses_is_real(self) -> None:
+        from neverempty.dataset.case import LabelMethod
+
+        text = self.PROMPT.read_text(encoding="utf-8")
+        assert "llm_drafted_human_verified" in text
+        assert "llm_drafted_human_verified" in get_args(LabelMethod)
+
+    def test_it_lists_all_eleven_branches(self) -> None:
+        from neverempty.evals.nextrole import BRANCHES
+
+        text = self.PROMPT.read_text(encoding="utf-8")
+        for branch in BRANCHES:
+            assert branch in text, branch
+
+    def test_the_counts_match_the_suite_requirements(self) -> None:
+        from neverempty.evals.suites import MIN_PER_BRANCH
+
+        text = self.PROMPT.read_text(encoding="utf-8")
+        assert f"{MIN_PER_BRANCH} per intent" in text
+        assert "330" in text
+
+    def test_the_id_pattern_it_states_is_the_real_one(self) -> None:
+        text = self.PROMPT.read_text(encoding="utf-8")
+        assert "^[a-z0-9][a-z0-9._-]{2,63}$" in text
