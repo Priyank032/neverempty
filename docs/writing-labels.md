@@ -155,6 +155,37 @@ checks are published. `neverempty readme` enforces that — it will not print th
 The per-language slice earns its place immediately. A judge that is 90% overall
 can be 100% in English and 67% in Hindi, and the aggregate hides it completely.
 
+## Case format rules
+
+Four rules the loader enforces that will reject your first dataset if you have
+not met them. Each is checked at load time with the line number, so nothing
+reaches a run half-valid.
+
+| Field | Rule |
+| --- | --- |
+| `id` | `^[a-z0-9][a-z0-9._-]{2,63}$` — lowercase, 3 to 64 characters. `"c1"` is too short. |
+| `suite` | Dotted lowercase, like `nextrole.routing`. A bare `"toy"` is refused. |
+| `input` | Exactly one of `messages` or `payload`, never both and never neither. |
+| `expect` | At least one expectation. A case that expects nothing can never fail. |
+
+The `id` rule exists because case ids are the join key between a baseline and a
+candidate report; an id that varies by case changes what the gate pairs. The
+`suite` rule keeps suites addressable as a namespace once a project has more
+than one. `expect` is refused empty for the reason that runs through the whole
+library: a case with no expectation is not a passing case, it is an unmeasured
+one, and counting it as a pass would inflate every number above it.
+
+A minimal valid case:
+
+```json
+{"schema_version":1,"id":"nr-route-0001","suite":"nextrole.routing","split":"dev",
+ "input":{"messages":[{"role":"user","content":"any backend python jobs?"}]},
+ "expect":{"route":{"label":"job_search"}}}
+```
+
+The `test` split additionally requires `provenance` on every case, so a
+published number can always be traced to where its ground truth came from.
+
 ## The `expect` reference
 
 Every field is optional, and a scorer whose expectation is absent reports
@@ -248,3 +279,94 @@ case most likely to catch an agent overclaiming.
 `evals/nextrole/routing.jsonl` and `evals/nextrole/failure.jsonl` ship with a few
 worked examples covering the unambiguous case, the ambiguous case, an injected
 fault, a Hinglish fault, and a genuine-empty mirror. Copy their shape.
+
+## Implementing a JudgeModel
+
+The judge ships a protocol and a deterministic offline fake, never a provider
+SDK, so a vendor outage never turns into a red build on unrelated work. A real
+binding is one method:
+
+```python
+class JudgeModel(Protocol):
+    async def complete(self, *, system: str, user: str, temperature: float) -> str: ...
+```
+
+The judge owns the prompts, the parsing, the retries and the cache. A backend
+only turns two strings into one string.
+
+### What the string must contain
+
+The judge's own prompt asks for this, and the parser requires it:
+
+```json
+{"label": "supported", "rationale": "<= 200 characters"}
+```
+
+A bare `"supported"` is **not** accepted — it parses as nothing and the claim
+comes back `judge_error`. The parser is lenient about the wrapper and strict
+about the content: a fenced block or a "Here is the JSON:" preamble is
+recovered, an unrecognised label is not.
+
+A working binding, with the Anthropic SDK as the example:
+
+```python
+class AnthropicJudge:
+    def __init__(self, client, model: str = "claude-sonnet-5") -> None:
+        self._client = client
+        self._model = model
+
+    async def complete(self, *, system: str, user: str, temperature: float) -> str:
+        response = await self._client.messages.create(
+            model=self._model,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            temperature=temperature,
+            max_tokens=256,
+        )
+        return response.content[0].text
+```
+
+Wire it up with the agent's family declared, which is how the family check is
+enforced:
+
+```python
+from neverempty import scorers
+from neverempty.judge.judge import ClaimJudge
+
+judge = ClaimJudge(
+    model=AnthropicJudge(client),
+    model_id="claude-sonnet-5",
+    agent_family="openai",  # the family the *agent* runs on
+    cache_dir=".neverempty-judge-cache",
+)
+scorer = scorers.facts(judge=judge)
+```
+
+`agent_family` is required. The judge's family must differ from the agent's and
+the run refuses to start if it does not: a model grading its own output
+measures agreement with itself, not correctness. The family is inferred from
+`model_id` where the prefix is recognisable, and `judge_family=` declares it
+when it is not — an unknown family is refused rather than assumed.
+
+`cache_dir` is content-addressed on the claim, evidence, prompt version and
+model, so reruns are cheap and stable.
+
+### Three labels, four outcomes
+
+A judgment is `supported`, `contradicted` or `not_in_evidence`. A `Verdict`
+carries a fourth value, `judge_error`, which is not a judgment — it is the
+harness saying the judge could not be read after its retries, and it carries
+the reason so a degraded run can say what went wrong. It never counts as a
+pass or a fail.
+
+### Two different claim types
+
+They are easy to confuse and do different jobs:
+
+| Type | Shape | Where it comes from |
+| --- | --- | --- |
+| `Fact` | `(id, statement, match, evidence_key)` | your dataset's `expect.facts` |
+| `Claim` | `(id, text)` | built from a `Fact` and handed to the judge |
+
+Only a `Fact` with `match: "judge"` becomes a `Claim`. The rest are checked by
+`contains` or `regex` and never reach a model.

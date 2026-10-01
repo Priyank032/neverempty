@@ -232,3 +232,191 @@ class TestTheDocumentedSizeCapWorks:
     def test_the_docs_say_there_is_no_default_cap(self) -> None:
         text = (DOCS / "getting-started.md").read_text(encoding="utf-8")
         assert "no default size cap" in text
+
+
+class TestTheCaseFormatRulesAreDocumented:
+    """Four loader rules that reject a first dataset. Each error message is
+    good; none of them was findable before you hit it."""
+
+    def test_the_documented_minimal_case_loads(self, tmp_path: Path) -> None:
+        case = {
+            "schema_version": 1,
+            "id": "nr-route-0001",
+            "suite": "nextrole.routing",
+            "split": "dev",
+            "input": {"messages": [{"role": "user", "content": "any backend python jobs?"}]},
+            "expect": {"route": {"label": "job_search"}},
+        }
+        path = tmp_path / "doc.jsonl"
+        path.write_text(json.dumps(case) + "\n", encoding="utf-8")
+        assert len(Dataset.load(path, split="dev")) == 1
+
+    @pytest.mark.parametrize(
+        "fragment",
+        [
+            "^[a-z0-9][a-z0-9._-]{2,63}$",
+            "Dotted lowercase",
+            "Exactly one of `messages` or `payload`",
+            "At least one expectation",
+        ],
+    )
+    def test_each_rule_appears_in_the_docs(self, fragment: str) -> None:
+        text = (DOCS / "writing-labels.md").read_text(encoding="utf-8")
+        assert fragment in text
+
+    def test_the_documented_id_pattern_is_the_real_one(self) -> None:
+        """A pattern that drifts from the loader is worse than none."""
+        from pydantic import ValidationError
+
+        from neverempty.dataset.case import Case
+
+        base = {
+            "schema_version": 1,
+            "suite": "demo.routing",
+            "split": "dev",
+            "input": {"messages": [{"role": "user", "content": "q"}]},
+            "expect": {"route": {"label": "job_search"}},
+        }
+        Case.model_validate({**base, "id": "abc"})
+        with pytest.raises(ValidationError):
+            Case.model_validate({**base, "id": "c1"})
+        with pytest.raises(ValidationError):
+            Case.model_validate({**base, "id": "UPPER-case"})
+
+
+class TestTheTracingAndPricingDocsRun:
+    """The reviewer found cost always null with no pointer to the fix."""
+
+    async def test_the_documented_tracing_example_works(self, tmp_path: Path) -> None:
+        from neverempty import Tracer, tool
+        from neverempty.tracer.pricing import ModelPrice, Pricing
+        from neverempty.tracer.sinks import JsonlSink
+
+        pricing = Pricing(
+            version="openai-2026-09-01",
+            models={
+                "gpt-4o-2024-08-06": ModelPrice(
+                    input_usd_per_mtok=2.50,
+                    output_usd_per_mtok=10.00,
+                    cached_input_usd_per_mtok=1.25,
+                    as_of="2026-09-01",
+                    source_url="https://openai.com/api/pricing/",
+                )
+            },
+        )
+
+        @tool(empty_when=lambda rows: len(rows) == 0)
+        async def search_jobs(city: str) -> list[dict[str, str]]:
+            return [{"title": "Backend Engineer"}]
+
+        tracer = Tracer(sink=JsonlSink(tmp_path / "t.jsonl"), pricing=pricing)
+        async with tracer.run(case_id="req-42") as run:
+            await search_jobs(city="Pune")
+            with tracer.span("llm", name="rerank") as span:
+                span.record_usage(
+                    model="gpt-4o",
+                    resolved_model="gpt-4o-2024-08-06",
+                    input_tokens=812,
+                    output_tokens=240,
+                )
+            run.set_output(answer="Found 3 jobs.", route="job_search")
+
+        trace = json.loads((tmp_path / "t.jsonl").read_text(encoding="utf-8").strip())
+        assert trace["cost"]["usd"] == pytest.approx(812 * 2.50 / 1e6 + 240 * 10.0 / 1e6)
+        assert len(trace["spans"]) == 2
+
+    def test_the_docs_say_cost_is_null_without_a_pricing_table(self) -> None:
+        text = (DOCS / "getting-started.md").read_text(encoding="utf-8")
+        assert "model_not_in_pricing_table" in text
+        assert "record_usage" in text
+
+    def test_the_docs_state_the_cached_token_convention(self) -> None:
+        """The convention the doc never fixed, and the cause of a 3.9x
+        overcharge until it was settled."""
+        text = (DOCS / "getting-started.md").read_text(encoding="utf-8")
+        assert "subset" in text
+
+
+class TestTheJudgeDocsAreAccurate:
+    """The reviewer could not implement a JudgeModel: the required output
+    format was documented nowhere, and every bare label returned judge_error."""
+
+    async def _label(self, reply: str) -> str:
+        from neverempty.judge.judge import Claim, ClaimJudge
+
+        class Scripted:
+            async def complete(self, *, system: str, user: str, temperature: float) -> str:
+                return reply
+
+        judge = ClaimJudge(model=Scripted(), model_id="claude-sonnet-5", agent_family="openai")
+        verdicts = await judge.verify(claims=[Claim(id="c1", text="x")], evidence={"e": "y"})
+        return verdicts[0].label
+
+    async def test_a_bare_label_is_a_judge_error(self) -> None:
+        """The documented warning, which cost the reviewer the judge entirely."""
+        assert await self._label("supported") == "judge_error"
+
+    async def test_the_documented_json_shape_works(self) -> None:
+        assert await self._label('{"label": "supported", "rationale": "ok"}') == "supported"
+
+    async def test_a_fenced_block_is_recovered(self) -> None:
+        reply = '```json\n{"label": "supported", "rationale": "ok"}\n```'
+        assert await self._label(reply) == "supported"
+
+    async def test_a_preamble_is_recovered(self) -> None:
+        reply = 'Here is the JSON: {"label": "contradicted", "rationale": "no"}'
+        assert await self._label(reply) == "contradicted"
+
+    async def test_an_unknown_label_is_refused(self) -> None:
+        """Lenient about the wrapper, strict about the content."""
+        assert await self._label('{"label": "maybe", "rationale": "x"}') == "judge_error"
+
+    def test_the_documented_wiring_constructs(self) -> None:
+        """``agent_family`` is required; a snippet omitting it fails for a reader."""
+        import tempfile
+
+        from neverempty import scorers
+        from neverempty.judge.judge import ClaimJudge
+
+        class Scripted:
+            async def complete(self, *, system: str, user: str, temperature: float) -> str:
+                return '{"label": "supported", "rationale": "ok"}'
+
+        judge = ClaimJudge(
+            model=Scripted(),
+            model_id="claude-sonnet-5",
+            agent_family="openai",
+            cache_dir=tempfile.mkdtemp(),
+        )
+        assert scorers.facts(judge=judge) is not None
+
+    def test_a_judge_sharing_the_agents_family_is_refused(self) -> None:
+        from neverempty.judge.judge import ClaimJudge
+
+        class Scripted:
+            async def complete(self, *, system: str, user: str, temperature: float) -> str:
+                return "{}"
+
+        with pytest.raises(Exception, match="family"):
+            ClaimJudge(model=Scripted(), model_id="claude-sonnet-5", agent_family="anthropic")
+
+    def test_the_docs_state_the_required_format(self) -> None:
+        text = (DOCS / "writing-labels.md").read_text(encoding="utf-8")
+        assert '{"label": "supported", "rationale": "<= 200 characters"}' in text
+        assert 'A bare `"supported"` is **not** accepted' in text
+
+    def test_the_docs_separate_fact_from_claim(self) -> None:
+        text = (DOCS / "writing-labels.md").read_text(encoding="utf-8")
+        assert "`(id, statement, match, evidence_key)`" in text
+        assert "`(id, text)`" in text
+
+    def test_the_docs_distinguish_three_labels_from_four_outcomes(self) -> None:
+        text = (DOCS / "writing-labels.md").read_text(encoding="utf-8")
+        assert "Three labels, four outcomes" in text
+
+    def test_that_distinction_matches_the_types(self) -> None:
+        from neverempty.judge.judge import JudgeLabel, VerdictLabel
+
+        assert len(get_args(JudgeLabel)) == 3
+        assert len(get_args(VerdictLabel)) == 4
+        assert "judge_error" not in get_args(JudgeLabel)

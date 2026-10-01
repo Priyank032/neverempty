@@ -282,3 +282,68 @@ import contextvars, functools
 context = contextvars.copy_context()
 await loop.run_in_executor(None, functools.partial(context.run, blocking_tool))
 ```
+
+## Tracing without the Runner
+
+`Tracer.run()` opens a trace anywhere, not just inside an eval:
+
+```python
+from neverempty import Tracer
+from neverempty.tracer.sinks import JsonlSink
+
+tracer = Tracer(sink=JsonlSink("traces.jsonl"))
+
+async with tracer.run(case_id="req-42") as run:
+    result = await search_jobs(city="Pune")  # @tool spans attach themselves
+    with tracer.span("llm", name="rerank") as span:
+        span.record_usage(
+            model="gpt-4o",
+            resolved_model="gpt-4o-2024-08-06",  # what the provider actually ran
+            input_tokens=812,
+            output_tokens=240,
+        )
+    run.set_output(answer="Found 3 jobs.", route="job_search")
+```
+
+`record_usage` is the only way tokens and cost reach a trace. Nothing is
+inferred: a call that reports no counts records null, never a zero, and a
+provider's own numbers are the only source. `resolved_model` is worth passing
+whenever you have it — a config asking for `gpt-4o` and a response from
+`gpt-4o-2024-08-06` are different experiments, and only the resolved id makes
+model drift visible later.
+
+### Cost is null until you supply prices
+
+There is no built-in price table, and prices are not guessed. Until you give
+the tracer one, every cost is `null` with `unknown_reason:
+"model_not_in_pricing_table"` — correct, and useless:
+
+```python
+from neverempty.tracer.pricing import ModelPrice, Pricing
+
+pricing = Pricing(
+    version="openai-2026-09-01",  # travels with every report
+    models={
+        "gpt-4o-2024-08-06": ModelPrice(
+            input_usd_per_mtok=2.50,
+            output_usd_per_mtok=10.00,
+            cached_input_usd_per_mtok=1.25,
+            as_of="2026-09-01",
+            source_url="https://openai.com/api/pricing/",
+        )
+    },
+)
+tracer = Tracer(sink=JsonlSink("traces.jsonl"), pricing=pricing)
+```
+
+`as_of` and `source_url` are required: an undated price cannot be audited and
+an uncited one cannot be checked. `version` travels with every report, so two
+numbers computed under different prices are never compared as though they were
+the same measurement.
+
+Key the table by the **resolved** model id, which is what the provider returns
+and what the cost is computed against.
+
+`cached_input_tokens` is a **subset** of `input_tokens`, not an addition — the
+adapters normalise both conventions to that, so the cached half is charged at
+the cached rate and the rest at the full one.
