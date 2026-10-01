@@ -433,10 +433,12 @@ class TestTheReadmeQuickstartIsReal:
         assert "neverempty init" in readme
 
     def test_init_is_a_real_subcommand(self) -> None:
+        """Parsed rather than introspected: reaching into argparse internals
+        tests the library's shape, not that the command works."""
         from neverempty.cli import build_parser
 
-        actions = build_parser()._subparsers._group_actions[0]  # type: ignore[union-attr]
-        assert "init" in actions.choices  # type: ignore[attr-defined]
+        args = build_parser().parse_args(["init", "--dir", "."])
+        assert getattr(args, "handler", None) is not None
 
     def test_it_says_labels_are_the_users_to_write(self) -> None:
         readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
