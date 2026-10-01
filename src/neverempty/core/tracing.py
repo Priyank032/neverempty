@@ -9,6 +9,8 @@ cheaply. So the lookup is deferred to first use and cached.
 from __future__ import annotations
 
 import inspect
+import logging
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -29,7 +31,46 @@ def open_tool_span(name: str) -> tuple[Any, Any] | None:
 
         _open_span = impl
     result: tuple[Any, Any] | None = _open_span(name)
+    if result is None:
+        _warn_if_context_was_lost(name)
     return result
+
+
+_warned_tools: set[str] = set()
+_warned_lock = threading.Lock()
+
+
+def _warn_if_context_was_lost(name: str) -> None:
+    """Warn when a tool found no run while a run is open elsewhere.
+
+    Nothing recording is normal: doc rule 7 says a tool outside a tracer
+    context still works and simply does not record. But a tool that finds no
+    run *while a run is open in this process* has lost its context, and its
+    span is going missing silently -- tool-selection scoring then treats the
+    tool as never called, which looks exactly like a correct measurement.
+
+    The usual cause is ``loop.run_in_executor``, which does not copy the
+    caller's context into the worker thread. ``asyncio.to_thread`` does.
+
+    Warned once per tool, because a tool called in a loop would otherwise
+    produce a warning per call and bury the signal it exists to give.
+    """
+    from neverempty.tracer.tracer import a_run_is_open
+
+    if not a_run_is_open():
+        return
+    with _warned_lock:
+        if name in _warned_tools:
+            return
+        _warned_tools.add(name)
+    logging.getLogger("neverempty").warning(
+        "tool %r ran with no tracer context while a run was open, so its span "
+        "was not recorded and scoring will treat it as never called. This "
+        "usually means it was dispatched with loop.run_in_executor, which does "
+        "not copy the caller's context into the worker thread; use "
+        "asyncio.to_thread instead, or call the tool from the event loop.",
+        name,
+    )
 
 
 def bind_arguments(

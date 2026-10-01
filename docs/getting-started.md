@@ -253,3 +253,32 @@ async def search_jobs(city: str) -> list[dict]:
 
 `to_model()` then adds an explicit note telling the model the result is
 incomplete and not to state a total.
+
+### Calling a blocking tool from async code
+
+Use `asyncio.to_thread`, not `loop.run_in_executor`:
+
+```python
+await asyncio.to_thread(blocking_tool)  # span recorded
+await loop.run_in_executor(None, blocking_tool)  # span lost
+```
+
+`to_thread` copies the caller's context into the worker thread;
+`run_in_executor` does not, so the tool cannot see the open run and its span
+is never recorded. The tool still runs and still returns the right result,
+which is what makes it dangerous: tool-selection scoring treats the tool as
+never called, and a missing measurement looks exactly like a correct one.
+
+The wrapper warns once per tool when it finds no run while one is open, so the
+loss is visible rather than silent. It cannot recover the span: a thread with
+no context has no parent to attach to, and inventing one would file the tool
+under the wrong node.
+
+If you must use an executor, pass the context explicitly:
+
+```python
+import contextvars, functools
+
+context = contextvars.copy_context()
+await loop.run_in_executor(None, functools.partial(context.run, blocking_tool))
+```

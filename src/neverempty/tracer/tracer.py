@@ -45,6 +45,36 @@ from neverempty.tracer.sinks import Sink
 
 logger = logging.getLogger("neverempty.tracer")
 
+_open_runs = 0
+"""How many runs are currently open, process-wide.
+
+Deliberately *not* a ContextVar. Its only job is to tell two indistinguishable
+situations apart: a tool that found no current run because it was called
+outside any trace -- supported and silent, per doc rule 7 -- and one that found
+no current run because its context did not travel into a worker thread. The
+second is a span going missing, and only a process-wide fact can see it.
+"""
+_open_runs_lock = threading.Lock()
+
+
+def _note_run_opened() -> None:
+    global _open_runs
+    with _open_runs_lock:
+        _open_runs += 1
+
+
+def _note_run_closed() -> None:
+    global _open_runs
+    with _open_runs_lock:
+        _open_runs = max(_open_runs - 1, 0)
+
+
+def a_run_is_open() -> bool:
+    """True when some run is open somewhere in this process."""
+    with _open_runs_lock:
+        return _open_runs > 0
+
+
 _current_run: contextvars.ContextVar[_RunState | None] = contextvars.ContextVar(
     "neverempty_run", default=None
 )
@@ -156,6 +186,7 @@ class SpanHandle:
 
         if isinstance(result, Ok):
             self.attributes["tool.truncated"] = result.truncated
+            self.attributes["tool.ambiguous_empty"] = result.ambiguous_empty
             self.status = "ok"
         elif isinstance(result, Empty):
             self.status = "empty"
@@ -585,11 +616,13 @@ class _RunContext:
         return self._handle.trace
 
     def _enter(self) -> TraceRun:
+        _note_run_opened()
         self._run_token = _current_run.set(self._state)
         self._parent_token = _current_parent.set(None)
         return self._handle
 
     def _exit(self, exc: BaseException | None) -> None:
+        _note_run_closed()
         state = self._state
         if exc is not None:
             state.status = "budget_abort" if is_uncatchable(exc) else "target_error"

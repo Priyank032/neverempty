@@ -89,6 +89,18 @@ class Ok(_Result, Generic[T]):
     """The result was capped. Covers the sibling bug to the headline one: 100
     rows out of a larger set, reported by the model as "there are 100 records"."""
 
+    ambiguous_empty: bool = Field(default=False, exclude=True, repr=False)
+    """The value looked empty and the tool never declared what empty means.
+
+    Only set in non-strict mode, where the docstring promises "the ambiguity is
+    then recorded on the span instead". The value is still served unchanged --
+    promoting it to ``Empty`` would claim an absence the author never declared,
+    which is the original bug -- but an eval can now find the cases where the
+    model was handed something the harness could not interpret.
+
+    Excluded from serialization, like ``fault_injected``: the tracer copies it
+    to ``tool.ambiguous_empty`` on the span, and it is never shown to a model."""
+
     serialized_value: str | None = Field(default=None, exclude=True, repr=False)
     """The value as JSON, when the wrapper already produced it.
 

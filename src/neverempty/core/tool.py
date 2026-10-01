@@ -188,6 +188,8 @@ class _ToolSpec:
         if isinstance(value, (Ok, Empty, Err)):
             return value
 
+        ambiguous = False
+
         if self.empty_when is not None:
             try:
                 is_empty = self.empty_when(value)
@@ -213,6 +215,9 @@ class _ToolSpec:
                 raise AmbiguousEmptyError(message)
             # Non-strict: an empty-looking value is not silently promoted to
             # Empty. Claiming absence the author never declared is the bug.
+            # It is flagged instead, which is what the docstring promises and
+            # what makes these cases findable in an eval rather than silent.
+            ambiguous = True
 
         truncated = False
         if self.truncated_when is not None:
@@ -258,7 +263,12 @@ class _ToolSpec:
                 cause="TypeError",
             )
 
-        return Ok(value=value, truncated=truncated, serialized_value=serialized)
+        return Ok(
+            value=value,
+            truncated=truncated,
+            serialized_value=serialized,
+            ambiguous_empty=ambiguous,
+        )
 
     def apply_fault(self, spec: FaultSpec) -> ToolResult[Any] | None:
         """The result an injected fault produces, or ``None`` to run the tool.
