@@ -523,8 +523,12 @@ def gate(
             reason=(
                 f"inconclusive, rerun or reduce noise: {unstable_rate:.1%} of cases "
                 f"are unstable across repeats, above the "
-                f"{config.max_unstable_rate:.1%} limit. No delta can be "
-                f"attributed to this change."
+                f"{config.max_unstable_rate:.1%} max_unstable_rate limit. No delta "
+                f"can be attributed to this change. With 3 repeats this fires at "
+                f"roughly 3.5% per-call nondeterminism, so an agent above that "
+                f"cannot pass: set temperature=0 and a fixed seed, stub the "
+                f"nondeterministic dependency, or raise max_unstable_rate "
+                f"deliberately and record that the numbers are noisier."
             ),
             mcnemar=comparison.mcnemar,
             unstable_rate=unstable_rate,

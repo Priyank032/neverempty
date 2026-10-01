@@ -274,6 +274,33 @@ cases has a regression gate that fires only on large breaks. On 60 cases a
 exits 1 and names the metric. Use `must_pass` on individual cases for the
 requirements that must never break regardless of aggregate accuracy.
 
+#### A noisy agent cannot pass, by design
+
+Exit 3 is *inconclusive*, not *regression*: the run was too noisy to attribute
+any delta to the change. With the default 3 repeats and
+`max_unstable_rate = 0.10`, that fires at roughly **3.5% per-call
+nondeterminism**:
+
+| Per-call noise | Cases unstable | Verdict |
+| --- | --- | --- |
+| 1% | 3.1% | passes |
+| 2% | 5.8% | passes |
+| 3.5% | 10.2% | **exit 3** |
+| 10% | 26.9% | **exit 3** |
+
+An agent above that line fails every build, including unchanged reruns, which
+is correct — a delta measured through that much noise means nothing — but it
+is not something to sit with. Fix the noise rather than the threshold:
+
+- `temperature=0` and a fixed seed on every model call.
+- Stub the nondeterministic dependency. A tool whose ordering varies run to run
+  will do this on its own.
+- Raise `max_unstable_rate` only deliberately, and treat every number from that
+  suite as correspondingly noisier.
+
+More repeats do not help: they measure the instability more precisely, they do
+not reduce it.
+
 ### What the renderer refuses to print
 
 Numbers in a README come from a committed report, because the renderer reads
