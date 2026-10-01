@@ -124,3 +124,27 @@ class TestTheConsequenceIsDocumented:
         readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
         assert "3.5%" in readme
         assert "max_unstable_rate" in readme
+
+
+class TestTheSeedClaimIsHonest:
+    """D13: the README said "all randomness comes from this" of the runner's
+    seed. It does not reach the agent, and the reviewer measured six different
+    route scores from one seed."""
+
+    def test_the_readme_does_not_overclaim(self) -> None:
+        readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+        assert "all randomness comes from this" not in readme
+
+    def test_it_says_what_the_seed_actually_covers(self) -> None:
+        readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+        assert "cannot reach the agent" in readme
+
+    def test_one_seed_with_a_noisy_agent_still_varies(self, tmp_path: Path) -> None:
+        """The measurement behind the claim."""
+        dataset = _dataset(tmp_path, cases=30)
+        scores = set()
+        for agent_seed in range(4):
+            report = _run(dataset, noise=0.20, seed=agent_seed)
+            route = next(m for m in report.metrics if m.name == "route")
+            scores.add(route.value)
+        assert len(scores) > 1, "a noisy agent produced identical scores; check the fixture"

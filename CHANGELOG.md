@@ -60,6 +60,92 @@ reproduced by a test written before the fix.
   and cmd. An empty match is refused rather than rendered as an empty Numbers
   section.
 
+### Fixed — second review
+
+A second independent black-box review, again with no source access and no
+design doc, attacked the measurement layer rather than the tool wrapper. The
+tool-result typing held; the numbers around it did not. Every fix below has a
+regression test in `tests/regressions/`, written before the fix and failing for
+the right reason first.
+
+- **The headline safety metric did not exist.** `failure_handling` scored "the
+  agent dropped the error" and "the agent told the user no data exists"
+  identically, both `passed=False, value=0.0`. The scorer computed the
+  distinction and aggregation discarded it, so an agent regressing from
+  unhelpful to actively lying moved no number and nothing in the gate. The
+  design doc specifies `misreport-as-empty` in three places, including as a
+  gate floor; it was never built. It is now derived with a Wilson interval,
+  collapsed any-hit across repeats, and absent rather than zero when no tool
+  failed in the run.
+- **A floored metric that disappears now fails the build.** An agent that
+  stopped producing output had `route` go from 1.0 to "not measured", the floor
+  was skipped, and the gate exited 0. "Missing must never look like failure" is
+  the right principle, but it was applied without asking *why* the metric was
+  missing: never measured is a non-event, measured in the baseline and gone in
+  the candidate is a regression with a missing number.
+- **Crashed repeats are counted, rendered and treated as instability.** A
+  target crashing on 2 of every 3 calls reported `complete=True`, `status=ok`,
+  `route=1.0`, `unstable=0` and gated pass. The surviving repeats were measured
+  honestly; nothing said most of the run had not happened.
+- **An unenforceable cost cap aborts the run.** With a model absent from the
+  pricing table every cost is null, so `max_cost_usd` counted nothing and a run
+  spending 50M tokens under a $0.05 cap finished `ok`.
+- **Cached tokens are no longer double-billed.** OpenAI's `prompt_tokens`
+  already includes `cached_tokens`; charging both overstated a heavily cached
+  call by 3.86x. The two providers use opposite conventions, so the ambiguity
+  is resolved at each adapter boundary and `cached_input_tokens` is documented
+  and enforced as a subset of `input_tokens`.
+- **Partial usage no longer prices as a cheap run.** Two LLM calls where only
+  one reported tokens produced a confident total for half the work. A new
+  `usage_partial` flag marks it, distinct from `usage_missing`, which means
+  nothing was reported at all.
+- **An unmeasured duration is null, not zero** — it was dragging p50 below
+  anything observed.
+- **The trace and the model can no longer disagree.** A value JSON cannot
+  represent produced `Ok`, a span marked `ok`, and a model payload saying
+  `error`. Serializability is now decided once, in the wrapper, before the span
+  is written.
+- **`strict=False` records the ambiguity its docstring promises.** The mode
+  recommended for production was reproducing the library's headline bug
+  silently.
+- **`GeneratorExit` propagates** instead of becoming an `Err`, so a cancelled
+  tool that raises during teardown no longer loses the cancellation.
+- **A tool whose context was lost now warns.** `loop.run_in_executor` does not
+  carry the caller's context, so the span vanished and scoring treated the tool
+  as never called.
+- **The trace's `env` agrees with the report's.** Traces claimed
+  `concurrency: 1`, no seed and no fault profile while the report said
+  otherwise — and a trace claiming no faults undoes the protection the fault
+  profile exists for.
+- **`neverempty readme` expands globs**, and the CLI's streams are UTF-8 so
+  Devanagari output does not raise on a Windows console.
+- **`python -m neverempty` works.**
+- **The `anthropic` and `otel` extras are gone.** They installed SDKs no code
+  in the package used.
+
+### Documentation
+
+- The four case-format rules that reject a first dataset, with the reasoning.
+- `record_usage`, `Pricing` and `ModelPrice`: cost is null until you supply
+  prices, and nothing said so.
+- The judge's required output format, a working `JudgeModel`, and the
+  distinction between three labels and four outcomes.
+- The gate's detection floor and its instability ceiling, both with measured
+  numbers rather than assertions.
+
+### Unchanged, deliberately
+
+- `KeyError` stays classified as `validation`. The classification table is the
+  design doc's, and changing a kind silently rewrites every published
+  `error_kind` number. The whole table is now pinned by a test.
+- `max_unstable_rate` stays at 0.10. The doc specifies it three times and names
+  the alternative as the trap to avoid: "red builds with no code change, then
+  someone disables the gate". The ceiling is documented instead.
+- There is still no default payload size cap. The doc's eight wrapper rules do
+  not define one and `truncated` is author-declared, so picking a byte
+  threshold would invent a number the specification does not set. Documented
+  with a working `truncated_when` recipe.
+
 ### Documentation
 
 - `to_model()` returns a JSON **string**; the README showed a dict, so a

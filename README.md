@@ -128,7 +128,7 @@ runner = Runner(
     tracer=Tracer(sink=JsonlSink("traces.jsonl")),
     repeats=3,  # instability is reported, not hidden
     concurrency=4,
-    seed=20260929,  # all randomness comes from this
+    seed=20260929,  # the harness's randomness; see the note below
 )
 report = asyncio.run(runner.run(dataset))
 
@@ -148,6 +148,12 @@ metric route: value=1.0  n=3  ci=(0.439, 1.0)
 traces:  9 written (3 cases x 3 repeats)
 gate:    verdict=pass exit=0
 ```
+
+`seed` fixes the harness's own randomness: sampling, the bootstrap, and the
+order work is scheduled in. It cannot reach the agent's. The same seed with a
+nondeterministic agent still gives different scores run to run — set
+`temperature=0` and a fixed seed on your model calls for that, and see the
+instability ceiling below.
 
 The interval is wide because n=3. That is the point: the renderer refuses to
 print a percentage below n=10, and labels anything below n=50 as indicative.

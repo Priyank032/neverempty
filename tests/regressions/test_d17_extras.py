@@ -20,13 +20,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import tomllib
+from neverempty.config import _toml_module
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 def _extras() -> dict[str, list[str]]:
-    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    # ``tomllib`` is 3.11+; the project already resolves this for 3.10, and a
+    # test that hard-imports it fails the oldest supported leg only.
+    data = _toml_module().loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     extras: dict[str, list[str]] = data["project"]["optional-dependencies"]
     return extras
 
