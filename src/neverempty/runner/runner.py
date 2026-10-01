@@ -264,6 +264,24 @@ class Runner:
     ) -> Report:
         outcomes: list[CaseOutcome] = list(existing)
         traces: list[Trace] = []
+
+        # The tracer cannot know how the runner was configured, so it defaulted
+        # to concurrency 1, no seed and no fault profile while the report said
+        # otherwise -- two artifacts of one run disagreeing. The fault profile
+        # is the one that matters most: a trace claiming null undoes the
+        # protection ``_fault_profile`` exists for, letting a misreport-as-empty
+        # number be read as coming from a run that injected nothing.
+        #
+        # Overrides the caller passed to the Tracer win: they were set
+        # deliberately and on purpose.
+        self.tracer.env_overrides = {
+            "concurrency": self.concurrency,
+            "seed": self.seed,
+            "fault_profile": _fault_profile(dataset),
+            "mode": "replay" if self.mode == "replay" else "live",
+            **self.tracer.env_overrides,
+        }
+
         spent = _Budget(self.max_cost_usd)
         semaphore = asyncio.Semaphore(self.concurrency)
         aborted = False

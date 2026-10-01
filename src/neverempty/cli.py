@@ -11,6 +11,7 @@ every other subcommand uses ``EXIT_OK`` / ``EXIT_INVALID`` / ``EXIT_USAGE``.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib
 import json
 import sys
@@ -1117,7 +1118,30 @@ def _baseline_help(args: argparse.Namespace) -> int:
     return EXIT_USAGE
 
 
+def _use_utf8_streams() -> None:
+    """Make stdout and stderr UTF-8, whatever the console's default is.
+
+    The suites this library was built for are Hindi and Hinglish, and the
+    failure patterns contain Devanagari, so on a default Windows console
+    (``cp1252``) printing them raises ``UnicodeEncodeError`` -- which reads as
+    a bug in the reporting tool rather than a console setting. Files were
+    always written with ``encoding="utf-8"``; this is stdout only.
+
+    ``errors="replace"`` rather than ``strict``: a terminal that cannot render
+    a glyph is a cosmetic problem, and raising from inside a reporting tool is
+    not. Wrapped because a caller may have replaced these streams with
+    something that has no ``reconfigure``.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        with contextlib.suppress(ValueError, OSError):  # exotic or closed stream
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    _use_utf8_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
 

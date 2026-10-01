@@ -354,7 +354,7 @@ pip install -e .
 
 Core depends on `pydantic>=2` and nothing else. Python 3.10 to 3.13.
 Integrations ship as extras: `neverempty[langgraph]`, `neverempty[openai]`,
-`neverempty[anthropic]`, `neverempty[bedrock]`, `neverempty[otel]`.
+`neverempty[bedrock]`.
 
 <!-- neverempty:numbers:begin -->
 ## Numbers

@@ -33,9 +33,13 @@ dependencies = ["pydantic>=2.7,<3"]
 # semantics, and that is a safety guarantee, not a convenience.
 langgraph = ["langgraph>=0.2,<2", "langchain-core>=0.3,<2"]
 openai = ["openai>=1.40"]
-anthropic = ["anthropic>=0.34"]
 bedrock = ["boto3>=1.34"]
-otel = ["opentelemetry-sdk>=1.26", "opentelemetry-exporter-otlp-proto-http>=1.26"]
+# No `anthropic` extra: there is no instrument_anthropic, so installing the SDK
+# would get the user a download and nothing else. No `otel` extra either: the
+# exporter is M14, which the design doc puts outside 0.1.0. An extra is a claim
+# that installing it gets you something, and an unbacked one is an absence
+# presented as a capability -- the shape of bug this library exists to catch.
+# Both return when the code behind them does.
 # No package pinned: access is waitlisted and the SDK's shape is unverified, so
 # the backend takes a client the caller supplies rather than importing one. The
 # extra exists to name the capability; it gains a dependency when the comparison
@@ -45,9 +49,7 @@ all = [
   "neverempty[jev]",
   "neverempty[langgraph]",
   "neverempty[openai]",
-  "neverempty[anthropic]",
   "neverempty[bedrock]",
-  "neverempty[otel]",
 ]
 
 [project.scripts]

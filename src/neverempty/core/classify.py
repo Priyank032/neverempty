@@ -26,6 +26,17 @@ UNCATCHABLE: tuple[type[BaseException], ...] = (
     asyncio.CancelledError,
     KeyboardInterrupt,
     SystemExit,
+    # Not in the doc's non-negotiable list, which names the three above, but it
+    # belongs with them: Python throws GeneratorExit into a generator or
+    # coroutine during teardown, so turning it into an Err corrupts the cleanup
+    # it is part of. A tool cancelled mid-await that raised it while unwinding
+    # returned Err(kind="exception") and the cancellation was lost.
+    #
+    # A *custom* BaseException subclass is deliberately not here: someone
+    # subclassing BaseException for a domain error should still get a typed
+    # failure, and intent cannot be read except by naming the ones Python
+    # itself uses for control flow.
+    GeneratorExit,
 )
 
 _RETRYABLE: frozenset[ErrorKind] = frozenset({"timeout", "upstream", "rate_limit"})
