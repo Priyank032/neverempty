@@ -423,3 +423,21 @@ class TestTheJudgeDocsAreAccurate:
         assert len(get_args(JudgeLabel)) == 3
         assert len(get_args(VerdictLabel)) == 4
         assert "judge_error" not in get_args(JudgeLabel)
+
+
+class TestTheReadmeQuickstartIsReal:
+    """The first thing a stranger reads has to be the thing that works."""
+
+    def test_it_leads_with_init(self) -> None:
+        readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
+        assert "neverempty init" in readme
+
+    def test_init_is_a_real_subcommand(self) -> None:
+        from neverempty.cli import build_parser
+
+        actions = build_parser()._subparsers._group_actions[0]  # type: ignore[union-attr]
+        assert "init" in actions.choices  # type: ignore[attr-defined]
+
+    def test_it_says_labels_are_the_users_to_write(self) -> None:
+        readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
+        assert "yours to write" in readme

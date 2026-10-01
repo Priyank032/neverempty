@@ -73,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate.set_defaults(handler=_validate)
 
+    _add_init(subcommands)
     _add_run(subcommands)
     _add_coverage(subcommands)
     _add_import(subcommands)
@@ -84,6 +85,45 @@ def build_parser() -> argparse.ArgumentParser:
     _add_judge(subcommands)
 
     return parser
+
+
+def _add_init(subcommands: Any) -> None:
+    init = subcommands.add_parser(
+        "init",
+        help="create a working eval setup in this project",
+        description=(
+            "Write a config, a dataset of example cases and a target stub, so "
+            "'neverempty run' succeeds before you have written anything of your "
+            "own. It writes no labels: ground truth about your agent is yours, "
+            "and a generated one would make every number a measure of one model "
+            "agreeing with another."
+        ),
+    )
+    init.add_argument("--dir", default=".", metavar="PATH", help="project root (default: here)")
+    init.add_argument("--force", action="store_true", help="overwrite files that already exist")
+    init.set_defaults(handler=_init)
+
+
+def _init(args: argparse.Namespace) -> int:
+    from neverempty.scaffold import FILES, NEXT_STEPS
+
+    root = Path(args.dir)
+    existing = [name for name in FILES if (root / name).exists()]
+    if existing and not args.force:
+        print(
+            "refusing to overwrite: " + ", ".join(sorted(existing)) + ". "
+            "Pass --force to replace them.",
+            file=sys.stderr,
+        )
+        return EXIT_INVALID
+
+    for name, content in FILES.items():
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8", newline="\n")
+
+    print(NEXT_STEPS)
+    return EXIT_OK
 
 
 def _add_run(subcommands: Any) -> None:
@@ -126,6 +166,22 @@ def _add_run(subcommands: Any) -> None:
     runner.set_defaults(handler=_run)
 
 
+def _ensure_importable(root: Path) -> None:
+    """Put ``root`` and its parent on ``sys.path``, nearest first.
+
+    The parent too, because a config at ``evals/neverempty.toml`` names
+    ``evals.target:run_agent`` -- the package is the config's own directory, so
+    the importable root is the directory above it. Both are added, so a config
+    kept at the project root works as well.
+
+    Idempotent, and never reorders an entry the caller put there deliberately.
+    """
+    for candidate in (root.parent, root):
+        entry = str(candidate)
+        if entry not in sys.path:
+            sys.path.insert(0, entry)
+
+
 def _run(args: argparse.Namespace) -> int:
     """Run each configured suite. One report per suite."""
     import asyncio
@@ -138,6 +194,13 @@ def _run(args: argparse.Namespace) -> int:
     except ConfigError as exc:
         print(str(exc), file=sys.stderr)
         return EXIT_INVALID
+
+    # A config names its entrypoint as "evals.target:run_agent", relative to
+    # the project it belongs to -- but importlib only sees sys.path, which does
+    # not include someone else's project root. Without this, every config that
+    # points at its own code fails with "No module named 'evals'", which reads
+    # as a broken install rather than a missing path entry.
+    _ensure_importable(Path(args.config).resolve().parent)
 
     suites = list(config.suites)
     if args.suite:
@@ -162,7 +225,7 @@ def _run(args: argparse.Namespace) -> int:
 
     for suite in suites:
         try:
-            dataset = Dataset.load(suite.path, split=suite.split)
+            dataset = Dataset.load(config.resolve(suite.path), split=suite.split)
         except DatasetError as exc:
             print(f"{suite.path}: {exc}", file=sys.stderr)
             for problem in exc.problems[:20]:
@@ -368,12 +431,12 @@ def _coverage(args: argparse.Namespace) -> int:
             split=suite.split,
         )
         try:
-            cases = Dataset.load(suite.path).cases
+            cases = Dataset.load(config.resolve(suite.path)).cases
         except DatasetError as exc:
             # An empty or absent file is the starting state for labelling, and
             # reporting the backlog is exactly what this command is for. Any
             # other dataset error is a real problem and still stops the run.
-            if not _is_empty_dataset(suite.path):
+            if not _is_empty_dataset(config.resolve(suite.path)):
                 print(f"{suite.path}: {exc}", file=sys.stderr)
                 return EXIT_INVALID
             cases = []
@@ -389,7 +452,7 @@ def _coverage(args: argparse.Namespace) -> int:
     return EXIT_INVALID
 
 
-def _is_empty_dataset(path: str) -> bool:
+def _is_empty_dataset(path: str | Path) -> bool:
     """True when the file is absent or holds nothing but blank lines."""
     target = Path(path)
     if not target.exists():

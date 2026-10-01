@@ -26,7 +26,13 @@ classifiers = [
 ]
 
 # Core depends on pydantic v2 only. Everything else is an extra.
-dependencies = ["pydantic>=2.7,<3"]
+dependencies = [
+  "pydantic>=2.7,<3",
+  # 3.10 only: tomllib is stdlib from 3.11. Core stays pydantic-only on every
+  # version that has it, but a CLI that advertises `run` and cannot read a
+  # config on its oldest supported Python is advertising something it lacks.
+  "tomli>=2.0; python_version < '3.11'",
+]
 
 [project.optional-dependencies]
 # Upper bounds at the next major: route_probe depends on interrupt_before
