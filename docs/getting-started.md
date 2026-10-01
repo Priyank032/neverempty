@@ -224,9 +224,31 @@ deleting a scorer would look like passing.
 
 ### Capping payload size
 
-There is **no default size cap**. `truncated` stays `false` until a
-`truncated_when` predicate says otherwise, so a runaway tool can return a
-megabyte and it reaches the model whole. Declare the cap you want:
+A tool result is capped at **64 KB** of JSON before it reaches the model. Over
+that, the payload is trimmed, `truncated` becomes `true`, and the model is told
+the result is incomplete.
+
+The number is a backstop, not a policy. Measured against real data, a job
+listing is about 382 bytes and a government scheme about 299, so fifty of
+either is 14-18 KB and passes untouched. At roughly 4 bytes per token, 64 KB is
+about 16k tokens -- an eighth of a 128k context window. 8 KB, matching the
+`tool.args` span cap, would truncate an ordinary 50-row search, and a cap that
+fires on normal results gets turned off.
+
+Only what the model reads is shortened. `Ok.value` keeps every row, because
+scorers read it and a cap that changed the measurement would be worse than the
+problem it solves. A list is trimmed by whole items, so the model always
+receives valid JSON.
+
+Override it per tool, including `None` to disable:
+
+```python
+@tool(never_empty=True, payload_cap_bytes=256_000)  # or None
+async def export_everything() -> list[dict]: ...
+```
+
+Declare your own cap where you know what a meaningful page looks like -- the
+default cannot know that:
 
 ```python
 import json

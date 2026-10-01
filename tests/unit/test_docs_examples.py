@@ -229,9 +229,12 @@ class TestTheDocumentedSizeCapWorks:
         assert rendered["truncated"] is False
         assert "note" not in rendered
 
-    def test_the_docs_say_there_is_no_default_cap(self) -> None:
+    def test_the_docs_state_the_default_cap_and_its_reason(self) -> None:
+        """There is a default now -- 64 KB -- and the number needs its
+        justification beside it, since the design doc sets none."""
         text = (DOCS / "getting-started.md").read_text(encoding="utf-8")
-        assert "no default size cap" in text
+        assert "64 KB" in text
+        assert "payload_cap_bytes" in text
 
 
 class TestTheCaseFormatRulesAreDocumented:

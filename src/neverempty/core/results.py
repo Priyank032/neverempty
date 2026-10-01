@@ -44,6 +44,25 @@ is deliberately blunt, and the fault-injection suite measures whether it works
 rather than assuming it does.
 """
 
+DEFAULT_PAYLOAD_CAP_BYTES = 64 * 1024
+"""Bytes of JSON a tool result may put in front of a model before it is capped.
+
+The design doc defines no default -- its wrapper rules make ``truncated``
+author-declared -- so the number is chosen here and the reasoning stays with
+it. Measured against real payloads, a job listing is about 382 bytes and a
+government scheme about 299, so fifty of either is 14-18 KB. Against a model's
+context at roughly 4 bytes per token, 64 KB is about 16k tokens, an eighth of a
+128k window.
+
+8 KB, matching the ``tool.args`` span cap, was the obvious first guess and is
+wrong: it would truncate an ordinary 50-row search. A cap that fires on normal
+results gets turned off, and a disabled cap protects nothing.
+
+This is a backstop against a tool with no limit of its own, not a replacement
+for ``truncated_when`` -- only the author knows what a meaningful page of their
+data is. Override per tool with ``payload_cap_bytes=``, or ``None`` to disable.
+"""
+
 TRUNCATED_NOTE = (
     "This result is incomplete: more matching records exist than are shown. "
     "Do not state a total count from this data."

@@ -18,7 +18,13 @@ from typing import Any, Generic, Protocol, TypeVar, cast
 
 from neverempty.core.classify import ClassifyError, classify, is_uncatchable, safe_str
 from neverempty.core.faults import FaultSpec, error_fault_details, next_fault
-from neverempty.core.results import Empty, Err, Ok, ToolResult
+from neverempty.core.results import (
+    DEFAULT_PAYLOAD_CAP_BYTES,
+    Empty,
+    Err,
+    Ok,
+    ToolResult,
+)
 from neverempty.core.stubs import (
     clear_side_effect_registry,
     find_stub,
@@ -83,6 +89,50 @@ def _safe_repr(value: Any) -> str:
         return f"<unreprable {type(value).__name__}>"
 
 
+def _cap_payload(value: Any, serialized: str, cap_bytes: int) -> tuple[Any, str, bool]:
+    """Shrink ``value`` until its JSON fits ``cap_bytes``.
+
+    Returns ``(kept, json, truncated)``, where ``kept`` is ``None`` when not
+    even one item fits -- the caller turns that into an ``Err``, because an
+    empty list under ``status: ok`` is the bug this library exists to prevent.
+
+    A list is trimmed by whole items, so what the model reads is always a valid
+    JSON document; cutting bytes would hand it a broken one, which is a worse
+    failure than a long one.
+
+    Anything else that is too large keeps its value and is only flagged: a
+    truncated string or dict cannot be made honest by removing part of it, and
+    the note tells the model the result is incomplete either way.
+    """
+    if len(serialized.encode("utf-8")) <= cap_bytes:
+        return value, serialized, False
+
+    if isinstance(value, list) and value:
+        # Start from the count the average item size predicts, then walk down.
+        # A plain binary search re-serializes the whole list about log2(n)
+        # times -- 30 ms on a 1 MB result -- and the first estimate is almost
+        # always right, because rows of the same shape are of similar size.
+        size = len(serialized.encode("utf-8"))
+        guess = max(1, int(len(value) * cap_bytes / size))
+        while guess > 0:
+            candidate = value[:guess]
+            text = json.dumps(candidate, ensure_ascii=False, allow_nan=False)
+            if len(text.encode("utf-8")) <= cap_bytes:
+                return candidate, text, True
+            # Overshot: shrink by the overshoot ratio rather than by one, so a
+            # list of wildly uneven rows still converges in a few steps.
+            shrunk = int(guess * cap_bytes / len(text.encode("utf-8")))
+            guess = min(shrunk, guess - 1)
+        # Nothing fit. Returning an empty list would put
+        # ``{"status": "ok", "data": []}`` in front of the model -- the exact
+        # shape this library exists to make unrepresentable, produced by the
+        # safety feature itself. Zero items kept is not a truncated result, it
+        # is a result that could not be delivered.
+        return None, "", True
+
+    return value, serialized, True
+
+
 def _serialize(value: Any) -> tuple[str | None, str | None]:
     """``(json, None)`` when ``value`` can be JSON, ``(None, reason)`` when not.
 
@@ -140,6 +190,7 @@ class _ToolSpec:
         "empty_when",
         "name",
         "never_empty",
+        "payload_cap_bytes",
         "retries",
         "retry_backoff_s",
         "side_effect",
@@ -154,6 +205,7 @@ class _ToolSpec:
         name: str,
         empty_when: Callable[[Any], bool] | None,
         truncated_when: Callable[[Any], bool] | None,
+        payload_cap_bytes: int | None = DEFAULT_PAYLOAD_CAP_BYTES,
         never_empty: bool,
         strict: bool,
         timeout_s: float | None,
@@ -165,6 +217,7 @@ class _ToolSpec:
         self.name = name
         self.empty_when = empty_when
         self.truncated_when = truncated_when
+        self.payload_cap_bytes = payload_cap_bytes
         self.never_empty = never_empty
         self.strict = strict
         self.timeout_s = timeout_s
@@ -263,6 +316,28 @@ class _ToolSpec:
                 cause="TypeError",
             )
 
+        # The author's own predicate is the point; this is a backstop for a
+        # tool that declared no limit and returned an unbounded result.
+        if self.payload_cap_bytes is not None and serialized is not None:
+            # Only ``serialized_value`` is shortened: that is what the model
+            # reads. ``value`` keeps everything, because scorers read it and a
+            # cap that changed the measurement would be a worse bug than the
+            # one it fixes.
+            kept, serialized, capped = _cap_payload(value, serialized, self.payload_cap_bytes)
+            if capped and kept is None:
+                return Err(
+                    kind="validation",
+                    message=(
+                        f"tool {self.name!r} returned a result whose first item "
+                        f"alone exceeds the {self.payload_cap_bytes} byte payload "
+                        f"cap, so nothing could be shown to the model. Return "
+                        f"less per item, or raise payload_cap_bytes for this tool."
+                    ),
+                    retryable=False,
+                    cause="ValueError",
+                )
+            truncated = truncated or capped
+
         return Ok(
             value=value,
             truncated=truncated,
@@ -304,6 +379,7 @@ def tool(
     name: str | None = None,
     empty_when: Callable[[Any], bool] | None = None,
     truncated_when: Callable[[Any], bool] | None = None,
+    payload_cap_bytes: int | None = DEFAULT_PAYLOAD_CAP_BYTES,
     never_empty: bool = False,
     strict: bool = True,
     timeout_s: float | None = None,
@@ -364,6 +440,7 @@ def tool(
             name=name or func.__name__,
             empty_when=empty_when,
             truncated_when=truncated_when,
+            payload_cap_bytes=payload_cap_bytes,
             never_empty=never_empty,
             strict=strict,
             timeout_s=timeout_s,
