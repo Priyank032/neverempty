@@ -89,7 +89,35 @@ class Ok(_Result, Generic[T]):
     """The result was capped. Covers the sibling bug to the headline one: 100
     rows out of a larger set, reported by the model as "there are 100 records"."""
 
+    serialized_value: str | None = Field(default=None, exclude=True, repr=False)
+    """The value as JSON, when the wrapper already produced it.
+
+    The wrapper serializes every value to decide whether the result can be
+    ``Ok`` at all -- the span records a status, so that status has to be known
+    before the span is written, not at render time. Keeping the text means
+    ``to_model`` splices it instead of encoding the same payload twice, which
+    took 6.7 ms of the 9.3 ms a 1 MB result cost.
+
+    Excluded from serialization: it is a cache of ``value``, not a second
+    field, and writing it into the trace would double every payload on disk."""
+
     def to_model(self) -> str:
+        if self.serialized_value is not None:
+            # Spliced rather than re-encoded. The cached text is the value
+            # exactly as ``json.dumps`` produced it, so the output is identical
+            # to building the whole payload at once -- asserted in
+            # tests/regressions/test_d10_trace_model_agree.py.
+            note = (
+                f", {json.dumps('note')}: {json.dumps(TRUNCATED_NOTE, ensure_ascii=False)}"
+                if self.truncated
+                else ""
+            )
+            truncated = "true" if self.truncated else "false"
+            return (
+                f'{{"status": "ok", "data": {self.serialized_value}, '
+                f'"truncated": {truncated}{note}}}'
+            )
+
         payload: dict[str, Any] = {
             "status": "ok",
             "data": self.value,

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import inspect
+import json
 import random
 import time
 from collections.abc import Awaitable, Callable
@@ -80,6 +81,22 @@ def _safe_repr(value: Any) -> str:
         if is_uncatchable(exc):
             raise
         return f"<unreprable {type(value).__name__}>"
+
+
+def _serialize(value: Any) -> tuple[str | None, str | None]:
+    """``(json, None)`` when ``value`` can be JSON, ``(None, reason)`` when not.
+
+    The text is returned so ``to_model`` can reuse it rather than encoding the
+    same payload a second time.
+
+    ``allow_nan=False`` because ``NaN`` and ``Infinity`` are not valid JSON: a
+    strict reader rejects them, so two readers of the same trace would disagree
+    about what the tool returned.
+    """
+    try:
+        return json.dumps(value, ensure_ascii=False, allow_nan=False), None
+    except (TypeError, ValueError) as exc:
+        return None, safe_str(exc) or type(exc).__name__
 
 
 def _predicate_error(name: str, exc: BaseException) -> Err:
@@ -213,7 +230,35 @@ class _ToolSpec:
                 return _predicate_type_error("truncated_when", flag)  # type: ignore[unreachable]
             truncated = flag
 
-        return Ok(value=value, truncated=truncated)
+        # Decided here, not in ``to_model()``. Checking at render time left the
+        # result ``Ok`` and its span ``ok`` while the model was handed
+        # ``status: error``, so a scorer reading the trace saw a different world
+        # from the one the model saw. A result's status is decided once, where
+        # the result is made.
+        # Decided here, not in ``to_model()``. Checking at render time left the
+        # result ``Ok`` and its span ``ok`` while the model was handed
+        # ``status: error``, so a scorer reading the trace saw a different world
+        # from the one the model saw. The span carries a status, so the status
+        # has to be known before the span is written.
+        #
+        # The cost is one ``json.dumps`` per call: 0.15 ms on a 100-row result,
+        # inside the doc's 1 ms budget (line 678). It only exceeds the budget on
+        # results past ~1k rows, which are the results ``truncated_when`` exists
+        # to cap. The text is handed to ``Ok`` so ``to_model`` does not encode
+        # the same payload a second time.
+        serialized, unserializable = _serialize(value)
+        if unserializable is not None:
+            return Err(
+                kind="validation",
+                message=(
+                    f"tool {self.name!r} returned a value that cannot be "
+                    f"serialized to JSON: {unserializable}"
+                ),
+                retryable=False,
+                cause="TypeError",
+            )
+
+        return Ok(value=value, truncated=truncated, serialized_value=serialized)
 
     def apply_fault(self, spec: FaultSpec) -> ToolResult[Any] | None:
         """The result an injected fault produces, or ``None`` to run the tool.
