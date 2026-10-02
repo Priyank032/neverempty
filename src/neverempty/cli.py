@@ -227,9 +227,17 @@ def _run(args: argparse.Namespace) -> int:
         try:
             dataset = Dataset.load(config.resolve(suite.path), split=suite.split)
         except DatasetError as exc:
-            print(f"{suite.path}: {exc}", file=sys.stderr)
+            print(f"suite {suite.name!r}: {suite.path}: {exc}", file=sys.stderr)
             for problem in exc.problems[:20]:
                 print(f"  {problem}", file=sys.stderr)
+            return EXIT_INVALID
+        except FileNotFoundError as exc:
+            # ``validate`` has always caught this pair; ``run`` caught only the
+            # first, so the most ordinary mistake there is -- a path that does
+            # not exist -- escaped as a stack trace. The message underneath was
+            # already good; the traceback is what made a typo look like a
+            # broken install.
+            print(f"suite {suite.name!r}: {exc}", file=sys.stderr)
             return EXIT_INVALID
 
         try:
