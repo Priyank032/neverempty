@@ -1,7 +1,12 @@
 # Install once with: uv run pre-commit install
+#
+# The ruff rev must stay in step with the version CI runs. Pinned at v0.6.9 it
+# could not parse this project's pyproject.toml at all, so every commit failed
+# for a reason unrelated to the code -- and a hook that always fails is a hook
+# everyone learns to pass --no-verify to, which is worse than no hook.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.16.8
     hooks:
       - id: ruff
         args: [--fix]

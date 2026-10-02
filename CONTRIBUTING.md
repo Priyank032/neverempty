@@ -12,10 +12,21 @@ Development uses [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/Priyank032/neverempty
 cd neverempty
 uv sync --group dev --all-extras
+uv run pre-commit install    # do this; see below
 uv run pytest
 ```
 
 Everything runs through `uv run`, so there is no virtualenv to activate.
+
+### Install the hook
+
+`.pre-commit-config.yaml` has existed since the first commit and was never
+installed, so every commit in this repository's history bypassed it. One of
+them reached `main` red: a test appended and pushed without re-running the
+formatter, caught by CI two minutes later and fixed by accident in the next
+commit.
+
+A config file is not a check. Install the hook.
 
 ## The checks CI runs
 
@@ -27,6 +38,16 @@ uv run ruff format .         # format
 uv run mypy                  # --strict, configured in pyproject.toml
 uv run pytest --cov          # tests with coverage
 ```
+
+The pre-commit hook runs the first two for you, which is the point: `ruff
+format` is the check most easily forgotten, because the code still works
+without it.
+
+The hook's `ruff` revision must stay in step with the version in
+`pyproject.toml`. Pinned ten minor versions behind, it could not parse the
+project's own config and failed on every commit for a reason unrelated to the
+code -- and a hook that always fails is one everyone learns to pass
+`--no-verify` to, which is worse than no hook at all.
 
 `mypy --strict` must be clean. `# type: ignore` needs an error code and a
 comment saying why. New public functions are fully annotated, and the package
