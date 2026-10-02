@@ -18,7 +18,6 @@ lets one through.
 
 from __future__ import annotations
 
-import datetime
 import json
 from typing import Any
 
@@ -26,11 +25,19 @@ from neverempty import Err, Ok, Tracer, tool
 from neverempty.tracer.sinks import MemorySink
 
 
+class _Unserializable:
+    """A value with no JSON spelling.
+
+    Deliberately not a ``datetime``: those now serialize losslessly (D21), so
+    they no longer demonstrate what this file is about.
+    """
+
+
 class TestTheWrapperDecidesSerializabilityOnce:
     async def test_an_unserializable_return_becomes_an_err(self) -> None:
         @tool(never_empty=True)
         async def t() -> Any:
-            return {"when": datetime.datetime(2026, 1, 1)}
+            return {"row": _Unserializable()}
 
         result = await t()
         assert isinstance(result, Err)
@@ -42,7 +49,7 @@ class TestTheWrapperDecidesSerializabilityOnce:
 
         @tool(never_empty=True)
         async def t() -> Any:
-            return {"when": datetime.datetime(2026, 1, 1)}
+            return {"row": _Unserializable()}
 
         async with tracer.run():
             result = await t()
@@ -55,7 +62,7 @@ class TestTheWrapperDecidesSerializabilityOnce:
     async def test_the_model_sees_the_same_thing(self) -> None:
         @tool(never_empty=True)
         async def t() -> Any:
-            return {"when": datetime.datetime(2026, 1, 1)}
+            return {"row": _Unserializable()}
 
         rendered = json.loads((await t()).to_model())
         assert rendered["status"] == "error"
@@ -65,7 +72,7 @@ class TestTheWrapperDecidesSerializabilityOnce:
 
         @tool(never_empty=True)
         async def search_jobs() -> Any:
-            return {"when": datetime.datetime(2026, 1, 1)}
+            return {"row": _Unserializable()}
 
         result = await search_jobs()
         assert isinstance(result, Err)

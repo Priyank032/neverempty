@@ -14,7 +14,11 @@ prevent:
 
 from __future__ import annotations
 
+import datetime
+import decimal
+import enum
 import json
+import uuid
 from typing import Annotated, Any, Generic, Literal, TypeAlias, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -43,6 +47,36 @@ An error must never render as something a model can read as absence. This note
 is deliberately blunt, and the fault-injection suite measures whether it works
 rather than assuming it does.
 """
+
+
+def _json_default(value: Any) -> Any:
+    """One lossless JSON spelling for the standard types a real tool returns.
+
+    ``json.dumps`` refuses these not because they are ambiguous but because it
+    will not pick a convention for you. Picking one here is better than every
+    tool author picking their own: a database-backed tool returns ``UUID`` and
+    ``datetime`` constantly, and refusing them pushed authors into
+    hand-serializing before returning, or out of ``@tool`` altogether.
+
+    ``Decimal`` becomes a string, not a float: a float would lose the precision
+    ``Decimal`` exists to keep, and a silently rounded salary is the kind of
+    wrong number this library exists to prevent.
+
+    Anything not listed raises, so it still becomes ``Err(validation)``. A set
+    is deliberately absent -- list or sorted list is the caller's decision.
+    """
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, datetime.timedelta):
+        return value.total_seconds()
+    if isinstance(value, decimal.Decimal):
+        return str(value)
+    if isinstance(value, enum.Enum):
+        return value.value
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
 
 DEFAULT_PAYLOAD_CAP_BYTES = 64 * 1024
 """Bytes of JSON a tool result may put in front of a model before it is capped.
@@ -157,7 +191,7 @@ class Ok(_Result, Generic[T]):
         if self.truncated:
             payload["note"] = TRUNCATED_NOTE
         try:
-            return json.dumps(payload, ensure_ascii=False, allow_nan=False)
+            return json.dumps(payload, ensure_ascii=False, allow_nan=False, default=_json_default)
         except (TypeError, ValueError):
             # No ``default=str``. Coercing an unserializable value to its repr
             # sent the model ``"<app.Row object at 0x7f...>"`` under

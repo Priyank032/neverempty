@@ -24,6 +24,7 @@ from neverempty.core.results import (
     Err,
     Ok,
     ToolResult,
+    _json_default,
 )
 from neverempty.core.stubs import (
     clear_side_effect_registry,
@@ -145,7 +146,7 @@ def _serialize(value: Any) -> tuple[str | None, str | None]:
     about what the tool returned.
     """
     try:
-        return json.dumps(value, ensure_ascii=False, allow_nan=False), None
+        return json.dumps(value, ensure_ascii=False, allow_nan=False, default=_json_default), None
     except (TypeError, ValueError) as exc:
         return None, safe_str(exc) or type(exc).__name__
 
