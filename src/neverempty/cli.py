@@ -403,7 +403,7 @@ def _add_coverage(subcommands: Any) -> None:
 def _coverage(args: argparse.Namespace) -> int:
     """Per-branch coverage for every suite the config declares."""
     from neverempty.config import ConfigError, load_config
-    from neverempty.evals.suites import MIN_PER_BRANCH, SuiteSpec, check_coverage
+    from neverempty.evals.suites import SuiteSpec, check_coverage
 
     try:
         config = load_config(args.config)
@@ -427,7 +427,7 @@ def _coverage(args: argparse.Namespace) -> int:
         spec = SuiteSpec(
             name=suite.name,
             branches=branches,
-            min_per_branch=MIN_PER_BRANCH,
+            min_per_branch=_declared_min_per_branch(config, suite.name, suite.split),
             split=suite.split,
         )
         try:
@@ -467,15 +467,7 @@ def _declared_branches(config: Any) -> tuple[str, ...] | None:
     property of the agent: duplicating them in TOML would create a second place
     to forget when the router grows an intent.
     """
-    entrypoint = config.target.entrypoint
-    module_name = entrypoint.partition(":")[0]
-    for candidate in (module_name, module_name.rpartition(".")[0]):
-        if not candidate:
-            continue
-        try:
-            module = importlib.import_module(candidate)
-        except ImportError:
-            continue
+    for module in _adapter_modules(config):
         branches = getattr(module, "BRANCHES", None)
         if isinstance(branches, tuple) and branches:
             return branches
@@ -483,6 +475,38 @@ def _declared_branches(config: Any) -> tuple[str, ...] | None:
     from neverempty.evals.nextrole import BRANCHES
 
     return BRANCHES
+
+
+def _adapter_modules(config: Any) -> list[Any]:
+    """The entrypoint's module and its parent package, whichever import."""
+    module_name = config.target.entrypoint.partition(":")[0]
+    modules = []
+    for candidate in (module_name, module_name.rpartition(".")[0]):
+        if not candidate:
+            continue
+        try:
+            modules.append(importlib.import_module(candidate))
+        except ImportError:
+            continue
+    return modules
+
+
+def _declared_min_per_branch(config: Any, name: str, split: str) -> int:
+    """The per-branch floor the adapter declares for this suite.
+
+    Read from the adapter's ``SUITES``, like the branch list, because the floor is
+    a property of what the suite measures: the failure suite pools its rate
+    across branches and declares 3, and printing the routing suite's 30 for it
+    reports a backlog that does not exist.
+    """
+    from neverempty.evals import nextrole
+    from neverempty.evals.suites import MIN_PER_BRANCH, SuiteSpec
+
+    for module in [*_adapter_modules(config), nextrole]:
+        for spec in getattr(module, "SUITES", ()) or ():
+            if isinstance(spec, SuiteSpec) and spec.name == name and spec.split == split:
+                return spec.min_per_branch
+    return MIN_PER_BRANCH
 
 
 def _add_import(subcommands: Any) -> None:

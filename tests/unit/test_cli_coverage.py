@@ -120,3 +120,51 @@ class TestOutput:
         main(["coverage", str(config), "--format", "markdown", "--allow-incomplete"])
         out = capsys.readouterr().out
         assert "| branch | cases | short by |" in out
+
+
+FAILURE_CONFIG = """
+[project]
+name = "fixture"
+
+[target]
+entrypoint = "neverempty.evals.nextrole:adapter"
+
+[[suite]]
+name = "nextrole.failure"
+path = "{path}"
+split = "test"
+suite_version = 1
+scorers = ["route"]
+
+[run]
+seed = 1
+"""
+
+
+class TestDeclaredFloor:
+    def test_the_failure_suite_uses_its_declared_floor_not_the_routing_one(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The failure suite pools its rate across branches and declares 3 per
+        branch. Coverage used the global 30, so it reported a backlog of 330
+        for a suite that needs 33."""
+        from neverempty.evals.nextrole import BRANCHES, FAILURE_SUITE
+
+        cases = tmp_path / "failure.jsonl"
+        write_cases(cases, dict.fromkeys(BRANCHES, FAILURE_SUITE.min_per_branch))
+        text = cases.read_text(encoding="utf-8").replace("nextrole.routing", "nextrole.failure")
+        cases.write_text(text, encoding="utf-8")
+        config = tmp_path / "neverempty.toml"
+        config.write_text(FAILURE_CONFIG.format(path=cases.as_posix()), encoding="utf-8")
+
+        assert main(["coverage", str(config)]) == 0
+        assert f"minimum {FAILURE_SUITE.min_per_branch} per branch" in capsys.readouterr().out
+
+    def test_the_routing_suite_still_needs_thirty(self, tmp_path: Path) -> None:
+        from neverempty.evals.nextrole import BRANCHES
+
+        cases = tmp_path / "routing.jsonl"
+        write_cases(cases, dict.fromkeys(BRANCHES, 3))
+        config = tmp_path / "neverempty.toml"
+        config.write_text(CONFIG.format(path=cases.as_posix()), encoding="utf-8")
+        assert main(["coverage", str(config)]) != 0
