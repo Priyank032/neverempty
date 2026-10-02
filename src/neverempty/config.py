@@ -38,6 +38,7 @@ KNOWN_SCORERS = frozenset(
         "facts",
         "forbidden_claims",
         "failure_handling",
+        "empty_payload",
         "false_alarm",
         "calibration",
     }
