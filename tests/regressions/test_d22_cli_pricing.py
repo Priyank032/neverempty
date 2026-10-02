@@ -114,3 +114,63 @@ class TestNoPricingSectionIsStillValid:
     def test_a_config_without_prices_loads(self, tmp_path: Path) -> None:
         config = load_config(str(_config(tmp_path, BASE)))
         assert config.pricing is None
+
+
+class TestReportLinksAreRelative:
+    """D23: a report passed by absolute path rendered an absolute link.
+
+    ``neverempty readme /abs/path/report.json`` produced
+    ``[suite](D:/Projects/neverempty/evals/reports/...)``, which is a dead link
+    on GitHub and a machine-specific one everywhere else. Whether a link works
+    must not depend on how the caller spelled the path.
+
+    Found by the repo's own drift check, which passes absolute paths and so
+    disagreed with the section rendered from relative ones.
+    """
+
+    def _render(self, report: Path, cwd: Path) -> str:
+        import io
+        import os
+        import sys
+
+        from neverempty.cli import main
+
+        previous = Path.cwd()
+        os.chdir(cwd)
+        buffer = io.StringIO()
+        stdout = sys.stdout
+        sys.stdout = buffer
+        try:
+            main(["readme", str(report)])
+        finally:
+            sys.stdout = stdout
+            os.chdir(previous)
+        return buffer.getvalue()
+
+    def _report(self, tmp_path: Path) -> Path:
+        from tests.unit.test_cli_readme import build
+
+        reports = tmp_path / "evals" / "reports"
+        reports.mkdir(parents=True)
+        return build(reports / "demo.json")
+
+    def test_an_absolute_path_renders_a_relative_link(self, tmp_path: Path) -> None:
+        report = self._report(tmp_path)
+        rendered = self._render(report.resolve(), tmp_path)
+        assert "evals/reports/demo.json" in rendered
+        assert str(tmp_path) not in rendered
+
+    def test_a_relative_path_renders_the_same_link(self, tmp_path: Path) -> None:
+        report = self._report(tmp_path)
+        absolute = self._render(report.resolve(), tmp_path)
+        relative = self._render(Path("evals/reports/demo.json"), tmp_path)
+        assert absolute == relative
+
+    def test_a_report_outside_the_tree_keeps_its_path(self, tmp_path: Path) -> None:
+        """Nothing to make it relative to, so it is left alone rather than
+        rewritten into something wrong."""
+        report = self._report(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        rendered = self._render(report.resolve(), elsewhere)
+        assert "demo.json" in rendered

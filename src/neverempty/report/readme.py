@@ -193,11 +193,26 @@ def render_readme_numbers(
 
 
 def load_reports(paths: Sequence[str | Path]) -> list[tuple[Report, str]]:
-    """Load each report, pairing it with the path it was read from."""
+    """Load each report, pairing it with the path a reader should follow.
+
+    An absolute path is made relative to the working directory, because the
+    link goes into a README: ``[suite](D:/Projects/.../report.json)`` is dead
+    on GitHub and machine-specific everywhere else. Whether a published link
+    works must not depend on how the caller spelled the argument.
+
+    A report outside the tree keeps the path it was given rather than being
+    rewritten into something wrong.
+    """
     loaded: list[tuple[Report, str]] = []
     for path in paths:
         target = Path(path)
-        loaded.append((Report.load(target), target.as_posix()))
+        link = target
+        if target.is_absolute():
+            try:
+                link = target.resolve().relative_to(Path.cwd().resolve())
+            except ValueError:
+                link = target
+        loaded.append((Report.load(target), link.as_posix()))
     return loaded
 
 

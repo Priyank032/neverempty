@@ -8,11 +8,15 @@ than an assumption. It injects tool faults on purpose, scores the answers, and
 fails the build when the misreport rate rises.
 
 > **Status: 0.1.0, not released.** Every milestone in the design doc is
-> implemented and the suite is green on Python 3.10-3.13, but two things are
-> missing before this is worth depending on: it is not on PyPI, and it carries
-> **no measured results on a real agent**. The number this library exists to
-> produce has never been published for a real model, including by me. Until it
-> is, treat the premise as plausible rather than demonstrated.
+> implemented, the suite is green on Python 3.10-3.13, and the Numbers section
+> below carries a first real measurement: 91.2% routing accuracy over 330
+> hand-verified cases against a live gpt-4o router.
+>
+> What is still missing is the number this library exists to produce.
+> `misreport_as_empty` needs injected faults, and those need the agent's tools
+> wrapped with `@tool`; that work is in progress. Until it lands, the
+> *measurement* machinery is demonstrated and the *premise* -- that agents
+> report tool failures as absence often enough to matter -- is not.
 
 ## Installation
 
@@ -472,7 +476,16 @@ never becomes a red build on unrelated work.
 <!-- neverempty:numbers:begin -->
 ## Numbers
 
-No measured numbers yet. This section is generated from committed reports, so it stays empty until a run produces one.
+Every number below is rendered from a committed report and links back to it. Each carries its sample size and 95% interval.
+
+| suite | metric | value | 95% CI | n | notes |
+| --- | --- | --- | --- | --- | --- |
+| [nextrole.routing](evals/reports/nextrole.routing.json) | `calibration` | 89.7% | 88.9% – 90.3% | 330 | bootstrap |
+| [nextrole.routing](evals/reports/nextrole.routing.json) | `route` | 91.2% | 87.7% – 93.8% | 330 | wilson |
+
+### Reproducibility
+
+- **nextrole.routing** (test, suite version 1) — [report](evals/reports/nextrole.routing.json), run 2026-10-02T08:53:16.454Z, target `unrecorded`, models unrecorded, pricing `openai-2026-09-01`, neverempty `0.1.0`.
 <!-- neverempty:numbers:end -->
 
 Every number will show its sample size, confidence interval, resolved model

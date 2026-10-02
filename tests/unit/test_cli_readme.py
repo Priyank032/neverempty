@@ -127,13 +127,21 @@ class TestCheck:
         assert main(["readme", str(report), "--check", str(tmp_path / "absent.md")]) != 0
 
     def test_the_repos_own_readme_is_current(self) -> None:
-        """With no committed reports, the section must say so. This is the check
-        that keeps the repository honest about having no numbers yet."""
+        """The published Numbers section must match the committed reports.
+
+        It used to assert the opposite -- that with no reports the section says
+        so -- which was the honest check while there were none. There is one
+        now, so the check is that every published number still matches the
+        report it was rendered from. A number in a README that has drifted from
+        its report is exactly the failure this command exists to catch.
+        """
         root = Path(__file__).resolve().parents[2]
         readme = root / "README.md"
         if not readme.exists():  # pragma: no cover - defensive
             pytest.skip("README.md not found")
-        assert main(["readme", "--check", str(readme)]) == 0
+        reports = sorted((root / "evals" / "reports").glob("*.json"))
+        argv = ["readme", *[str(path) for path in reports], "--check", str(readme)]
+        assert main(argv) == 0
 
 
 class TestReadmeExpandsGlobsLikeValidateDoes:
