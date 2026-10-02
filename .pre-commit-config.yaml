@@ -6,14 +6,14 @@
 # everyone learns to pass --no-verify to, which is worse than no hook.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.8
+    rev: v0.16.10
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v0.16.10
     hooks:
       - id: check-yaml
       - id: check-toml

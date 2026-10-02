@@ -33,25 +33,14 @@ def _ruff_hook_rev() -> str:
     return match.group(1)
 
 
-def _installed_ruff() -> str:
-    """The version this environment resolves, which is what CI runs.
+def _ruff_minimum() -> tuple[int, ...]:
+    """The oldest ruff that can parse this project's ``pyproject.toml``.
 
-    Comparing the pin to the ``>=0.6`` floor in pyproject.toml proves nothing:
-    the broken v0.6.9 satisfied it. CI runs ``uv run ruff``, which resolves the
-    newest matching release, so that is the version the hook has to match.
+    Observed, not guessed: v0.6.9 fails with "Failed to parse pyproject.toml"
+    on ``[tool.ruff.lint]``; v0.16.8 parses it. The real property is a floor,
+    so the constant records where the floor was measured.
     """
-    import subprocess
-    import sys
-
-    output = subprocess.run(
-        [sys.executable, "-m", "ruff", "--version"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    match = re.search(r"(\d+\.\d+\.\d+)", output)
-    assert match, f"could not read a version from {output!r}"
-    return match.group(1)
+    return (0, 16, 0)
 
 
 def _version(text: str) -> tuple[int, ...]:
@@ -59,11 +48,13 @@ def _version(text: str) -> tuple[int, ...]:
 
 
 class TestTheHookCanParseTheProject:
-    def test_the_pinned_ruff_matches_the_one_this_environment_runs(self) -> None:
-        """Not "newer than the floor" -- the broken v0.6.9 satisfied that and
-        still could not parse pyproject.toml. The hook has to run the same
-        version as CI, or it disagrees with the check it exists to pre-empt."""
-        assert _ruff_hook_rev() == _installed_ruff()
+    def test_the_pinned_ruff_can_parse_this_project(self) -> None:
+        """Not the ``ruff>=0.6`` floor in pyproject.toml -- the broken v0.6.9
+        satisfied that and still could not read the config. Not equality with
+        the installed version either: CI resolves whatever is newest, so
+        equality fails on every ruff release. The property is a floor measured
+        against the version that actually broke."""
+        assert _version(_ruff_hook_rev()) >= _ruff_minimum()
 
     def test_the_pin_is_a_real_release(self) -> None:
         """A rev like ``main`` would silently change under contributors."""
