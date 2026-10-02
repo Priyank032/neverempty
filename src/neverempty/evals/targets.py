@@ -1,6 +1,8 @@
 """The entrypoint ``evals/neverempty.toml`` names, and the recording stubs.
 
-``run_nextrole`` is what ``[target].entrypoint`` resolves to. It is deliberately
+``run_nextrole_router`` is what ``[target].entrypoint`` resolves to today; see
+:mod:`neverempty.evals.nextrole_live` for why. ``run_nextrole`` is the graph
+target, kept for an agent whose live path is a LangGraph graph. It is deliberately
 thin: all the behaviour is in :class:`~neverempty.evals.nextrole.NextRoleAdapter`,
 which is unit-tested without langgraph installed. This module is the seam where
 the real agent gets imported, so importing it fails cleanly when the agent is not
@@ -113,4 +115,44 @@ async def run_nextrole(case: Case, tracer: Any) -> None:
     await _resolved_adapter()(case, tracer)
 
 
-__all__ = ["STUBS", "RecordingStub", "run_nextrole"]
+_router: Any = None
+
+
+def _live_router() -> Any:
+    """The agent's ``IntentRouterAgent``, built once per process.
+
+    Imported here rather than at module import for the same reason as
+    ``_graph_factory``: neverempty must import without the agent repo present.
+    """
+    global _router
+    if _router is None:
+        try:
+            from app.agents.intent_router import (  # type: ignore[import-not-found]
+                IntentRouterAgent,
+            )
+        except ImportError as exc:
+            raise RuntimeError(
+                "cannot import app.agents.intent_router: put ai-career-copilot/backend "
+                "on PYTHONPATH (and install its requirements) to run the live router"
+            ) from exc
+        _router = IntentRouterAgent()
+    return _router
+
+
+async def run_nextrole_router(case: Case, tracer: Any) -> None:
+    """Routing target for the live router. See :mod:`neverempty.evals.nextrole_live`."""
+    if not case.suite.endswith(".routing"):
+        raise RuntimeError(
+            f"run_nextrole_router only runs routing suites, got {case.suite!r}: a failure "
+            f"case executes a branch, and the live branches are not wrapped with @tool"
+        )
+    from neverempty.evals.nextrole_live import route_live
+
+    intent, confidence = await route_live(case, _live_router())
+    run = tracer.current_run
+    if run is None:
+        raise RuntimeError("no active tracer run: the runner opens one for every case")
+    run.set_output(route=intent, structured={"confidence": confidence})
+
+
+__all__ = ["STUBS", "RecordingStub", "run_nextrole", "run_nextrole_router"]

@@ -9,7 +9,11 @@ name = "nextrole"
 neverempty_version = "0.1.0"
 
 [target]
-entrypoint = "neverempty.evals.targets:run_nextrole"
+# The live router, not the orchestrator graph: NextRoleOrchestrator is never
+# imported by the app and has nodes for only six of the eleven intents. Routing
+# suites only; the failure suite needs the live branches wrapped with @tool first.
+# Needs ai-career-copilot/backend on PYTHONPATH.
+entrypoint = "neverempty.evals.targets:run_nextrole_router"
 git_sha_from = "git"
 prompt_modules = ["app.agents.intent_router:INTENT_CLASSIFICATION_PROMPT"]
 side_effect_tools = ["send_gmail", "save_application", "send_email"]
