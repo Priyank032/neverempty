@@ -36,6 +36,7 @@ from neverempty.scorers.failure import (
     failure_handling,
     false_alarm,
 )
+from neverempty.scorers.payload import empty_payload
 from neverempty.scorers.route import RouteScorer, route
 from neverempty.scorers.tools import (
     ForbiddenToolsScorer,
@@ -64,6 +65,7 @@ __all__ = [
     "calibration",
     "collapse",
     "collapse_rule",
+    "empty_payload",
     "facts",
     "failure_handling",
     "false_alarm",

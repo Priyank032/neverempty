@@ -33,6 +33,7 @@ COLLAPSE_RULES: dict[str, CollapseRule] = {
     "forbidden_claims": "any_hit",
     "forbidden_tools": "any_hit",
     "failure_handling": "any_hit",
+    "empty_payload": "any_hit",
     "false_alarm": "any_hit",
     "calibration": "median",
 }
