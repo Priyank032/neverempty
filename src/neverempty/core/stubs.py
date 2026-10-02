@@ -23,6 +23,30 @@ _active: contextvars.ContextVar[Mapping[str, Callable[..., Any]] | None] = conte
 )
 
 
+_wrapped_tools: set[str] = set()
+
+
+def register_tool(name: str) -> None:
+    """Record that ``name`` is wrapped by ``@tool``.
+
+    Faults are applied by the wrapper, so a fault declared on a function that
+    is not wrapped silently does nothing: the case runs normally and the suite
+    reports a misreport rate over opportunities that never existed. Preflight
+    uses this to refuse that run rather than publish a number from it.
+    """
+    _wrapped_tools.add(name)
+
+
+def registered_tools() -> frozenset[str]:
+    """Every ``@tool``-wrapped function that has been imported."""
+    return frozenset(_wrapped_tools)
+
+
+def clear_tool_registry() -> None:
+    """Empty the registry. For tests; never call this from a runner."""
+    _wrapped_tools.clear()
+
+
 def register_side_effect(name: str) -> None:
     """Record that ``name`` touches the outside world.
 
@@ -64,8 +88,11 @@ def find_stub(name: str) -> Callable[..., Any] | None:
 
 __all__ = [
     "clear_side_effect_registry",
+    "clear_tool_registry",
     "find_stub",
     "register_side_effect",
+    "register_tool",
     "registered_side_effect_tools",
+    "registered_tools",
     "stub_scope",
 ]

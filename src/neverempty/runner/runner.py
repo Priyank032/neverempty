@@ -31,7 +31,11 @@ from typing import Any, Protocol, runtime_checkable
 
 from neverempty.core.classify import is_uncatchable
 from neverempty.core.faults import fault_scope
-from neverempty.core.stubs import registered_side_effect_tools, stub_scope
+from neverempty.core.stubs import (
+    registered_side_effect_tools,
+    registered_tools,
+    stub_scope,
+)
 from neverempty.core.trace import Env, Trace, TraceError, truncate_utf8
 from neverempty.dataset.case import Case
 from neverempty.dataset.loader import Dataset
@@ -232,6 +236,27 @@ class Runner:
                 f"silently replacing a committed report would lose the number a "
                 f"README links to."
             )
+
+        # A fault is applied by the ``@tool`` wrapper, so one declared on a
+        # function that is not wrapped does nothing at all: the case runs
+        # normally, scores normally, and the suite publishes a
+        # misreport-as-empty rate over opportunities that never existed. Doc
+        # row 993 names that trap, and it is this library's own headline bug
+        # pointed at the number the whole project exists to produce.
+        declared = {fault.tool for case in dataset.cases for fault in case.faults}
+        if declared:
+            wrapped = registered_tools()
+            missing = sorted(declared - wrapped)
+            if missing:
+                raise PreflightError(
+                    f"{len(missing)} tool(s) have declared faults but are not "
+                    f"wrapped with @tool: {', '.join(missing)}. A fault on an "
+                    f"unwrapped function never fires, so the suite would report "
+                    f"a misreport-as-empty rate measured over zero injections. "
+                    f"Wrap them with @tool, or remove the faults from those "
+                    f"cases. Imported wrapped tools: "
+                    f"{', '.join(sorted(wrapped)) or '(none)'}."
+                )
 
         unstubbed = sorted(registered_side_effect_tools() - set(self.stubs))
         if unstubbed:

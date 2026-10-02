@@ -187,15 +187,45 @@ class Config(_Strict):
         return value
 
     def resolve(self, path: str) -> Path:
-        """A path from the config, relative to the config file itself.
+        """A path from the config, found without consulting the shell.
 
-        Running the CLI from a different directory must not change which dataset
-        a suite names.
+        Two conventions are in use and both have to work:
+
+        - **Repo-root relative**, which the design doc writes and every
+          hand-written config follows: a config at ``evals/neverempty.toml``
+          naming ``evals/nextrole/routing.jsonl``. Anchoring that to the
+          config's own directory produced ``evals/evals/nextrole/...``.
+        - **Config relative**, which ``neverempty init`` writes: the same
+          config naming ``datasets/routing.jsonl``.
+
+        Whichever one exists wins. When neither does, the config's own
+        directory is reported: a config kept at the project root has no parent
+        worth naming, and a path above the project would send a reader looking
+        outside their own repository.
+
+        Never the working directory: running the CLI from somewhere else must
+        not change which dataset a suite names, which is the whole reason this
+        method exists rather than passing the string through.
         """
         candidate = Path(path)
         if candidate.is_absolute() or self.source is None:
             return candidate
-        return (self.source.parent / candidate).resolve()
+
+        config_dir = self.source.parent
+        project_root = config_dir.parent
+
+        beside_config = (config_dir / candidate).resolve()
+        from_root = (project_root / candidate).resolve()
+
+        if beside_config.exists():
+            return beside_config
+        if from_root.exists():
+            return from_root
+        # Neither exists, so this is an error message rather than a lookup.
+        # The config's own directory is the better guess: a config kept at the
+        # project root has no parent worth naming, and reporting a path above
+        # the project would send a reader looking outside their own repo.
+        return beside_config
 
     def config_hash(self) -> str:
         """SHA-256 over the parsed values, not the file bytes.

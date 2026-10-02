@@ -2,8 +2,13 @@
 
 Real timeouts almost never happen inside a 280-case eval run, so the natural
 misreport-as-empty rate is measured on zero opportunities. Faults are how that
-number becomes measurable: they are declared in the case, applied through a
-context variable, and require no change to agent code.
+number becomes measurable: they are declared in the case and applied through a
+context variable, so no *eval-specific* branch is needed in the agent.
+
+They do require the tool to be wrapped with ``@tool``, which is a change to
+agent code. A fault declared on an unwrapped function never fires, and the
+suite would then report a misreport rate over injections that never happened,
+so the runner's preflight refuses that run rather than publishing the number.
 
 A fault that produces an error never calls the real dependency, so a fault run
 costs nothing extra and touches no external system.

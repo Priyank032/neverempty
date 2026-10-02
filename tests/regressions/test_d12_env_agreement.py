@@ -21,7 +21,7 @@ import asyncio
 import json
 from pathlib import Path
 
-from neverempty import Dataset, Runner, Tracer, scorers
+from neverempty import Dataset, Runner, Tracer, scorers, tool
 from neverempty.core.trace import Trace
 from neverempty.report.report import Report
 from neverempty.tracer.sinks import MemorySink
@@ -49,6 +49,7 @@ def _run(
     sink = MemorySink()
 
     async def agent(case: object, tracer: object) -> None:
+        await lookup("Pune")
         tracer.current_run.set_output(answer="a", route="job_search")  # type: ignore[attr-defined]
 
     report = asyncio.run(
@@ -61,6 +62,13 @@ def _run(
         ).run(_dataset(tmp_path, faults=faults))
     )
     return sink.traces[0], report
+
+
+@tool(never_empty=True)
+async def lookup(city: str) -> list[dict[str, str]]:
+    """Wrapped, because preflight now refuses a fault declared on a function
+    that is not: an unfirable fault would make this fixture measure nothing."""
+    return [{"title": "Backend Engineer"}]
 
 
 def _env(obj: Trace | Report) -> dict[str, object]:

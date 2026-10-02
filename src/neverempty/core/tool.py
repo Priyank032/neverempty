@@ -29,6 +29,7 @@ from neverempty.core.stubs import (
     clear_side_effect_registry,
     find_stub,
     register_side_effect,
+    register_tool,
     registered_side_effect_tools,
 )
 from neverempty.core.tracing import open_tool_span, redacted_args
@@ -456,6 +457,9 @@ def tool(
         )
         wrapper.neverempty_name = spec.name
         wrapper.neverempty_side_effect = spec.side_effect
+        # Every wrapped tool, so preflight can tell whether a declared fault
+        # has anything to attach to.
+        register_tool(spec.name)
         if spec.side_effect:
             register_side_effect(spec.name)
         return wrapper
