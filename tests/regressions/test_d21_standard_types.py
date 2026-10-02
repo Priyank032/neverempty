@@ -200,3 +200,69 @@ class TestAHandBuiltOkRendersTheSameWay:
             pass
 
         assert json.loads(Ok(value={"row": Row()}).to_model())["status"] == "error"
+
+
+class TestPydanticModelsSerialize:
+    """A typed return is good practice, and a harness that turns it into an
+    error punishes it. Found wrapping NextRole's InterviewPrepAgent, whose
+    ``prepare`` returns an ``InterviewPrepResult`` -- it would have been an Err
+    on every call."""
+
+    async def test_a_model_becomes_its_json_form(self) -> None:
+        from pydantic import BaseModel
+
+        class Question(BaseModel):
+            text: str
+
+        class Result(BaseModel):
+            role: str
+            questions: list[Question]
+
+        @tool(never_empty=True)
+        async def prepare() -> Any:
+            return Result(role="Backend", questions=[Question(text="why?")])
+
+        rendered = json.loads((await prepare()).to_model())
+        assert rendered["status"] == "ok"
+        assert rendered["data"] == {
+            "role": "Backend",
+            "questions": [{"text": "why?"}],
+        }
+
+    async def test_nested_standard_types_inside_a_model_work(self) -> None:
+        """``mode="json"`` handles the UUID and datetime inside, so the two
+        rules compose rather than fighting."""
+        from pydantic import BaseModel
+
+        class Row(BaseModel):
+            id: uuid.UUID
+            created_at: datetime.datetime
+
+        @tool(never_empty=True)
+        async def fetch() -> Any:
+            return Row(
+                id=uuid.UUID("12345678-1234-5678-1234-567812345678"),
+                created_at=datetime.datetime(2026, 10, 2, tzinfo=datetime.timezone.utc),
+            )
+
+        rendered = json.loads((await fetch()).to_model())
+        assert rendered["data"]["id"] == "12345678-1234-5678-1234-567812345678"
+        assert rendered["data"]["created_at"].startswith("2026-10-02")
+
+    async def test_an_arbitrary_object_is_still_refused(self) -> None:
+        """The guard must not have widened into "anything with a method"."""
+
+        class NotAModel:
+            def model_dump(self) -> str:
+                return "not a dict"
+
+        @tool(never_empty=True)
+        async def t() -> Any:
+            return {"x": NotAModel()}
+
+        # Checked against pydantic's BaseModel, not duck-typed on the method
+        # name: a class that merely has ``model_dump`` is not a model, and
+        # trusting whatever it returns would be the "guess at a convention"
+        # this serializer exists to avoid.
+        rendered = json.loads((await t()).to_model())
+        assert rendered["status"] == "error"

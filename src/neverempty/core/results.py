@@ -75,6 +75,14 @@ def _json_default(value: Any) -> Any:
         return str(value)
     if isinstance(value, enum.Enum):
         return value.value
+    # A pydantic model has exactly one JSON form and knows it. Refusing them
+    # would make every tool that returns a typed result an Err -- which is what
+    # happened to NextRole's InterviewPrepAgent, whose ``prepare`` returns an
+    # ``InterviewPrepResult``. Typed returns are good practice, and a harness
+    # that punishes them is wrong.
+    if isinstance(value, BaseModel):
+        dumped: Any = value.model_dump(mode="json")
+        return dumped
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 

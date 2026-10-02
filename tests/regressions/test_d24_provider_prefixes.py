@@ -190,7 +190,7 @@ class TestTheDocumentedGatewayBindingWorks:
         snippet proves construction and the family check, not the network."""
         from pathlib import Path
 
-        text = (
-            Path(__file__).resolve().parents[2] / "docs" / "writing-labels.md"
-        ).read_text(encoding="utf-8")
+        text = (Path(__file__).resolve().parents[2] / "docs" / "writing-labels.md").read_text(
+            encoding="utf-8"
+        )
         assert "Unverified against a live gateway" in text
