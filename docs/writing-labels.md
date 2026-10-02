@@ -351,6 +351,72 @@ when it is not — an unknown family is refused rather than assumed.
 `cache_dir` is content-addressed on the claim, evidence, prompt version and
 model, so reruns are cheap and stable.
 
+### A judge on OpenRouter, or any OpenAI-compatible gateway
+
+`JudgeModel` is one method, so a gateway binding is a few lines. OpenRouter,
+Together, Groq, Fireworks and a local vLLM all speak the OpenAI chat API, so
+the same class serves all of them -- only `base_url` and the model id change.
+
+```python
+from openai import AsyncOpenAI
+
+
+class GatewayJudge:
+    """Any OpenAI-compatible endpoint. Only base_url and model differ."""
+
+    def __init__(self, client: AsyncOpenAI, model: str) -> None:
+        self._client = client
+        self._model = model
+
+    async def complete(self, *, system: str, user: str, temperature: float) -> str:
+        response = await self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=temperature,
+            max_tokens=256,
+        )
+        return response.choices[0].message.content or ""
+```
+
+Wire it up with the agent's family declared:
+
+```python
+client = AsyncOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ["OPENROUTER_API_KEY"],
+)
+judge = ClaimJudge(
+    model=GatewayJudge(client, "anthropic/claude-sonnet-4"),
+    model_id="anthropic/claude-sonnet-4",  # the gateway's own id
+    agent_family="openai",  # what the *agent* runs on
+    cache_dir=".neverempty-judge-cache",
+)
+```
+
+Pass the gateway's id verbatim. `infer_family` reads the vendor segment, so
+`anthropic/claude-sonnet-4` resolves to `anthropic` and is checked against the
+agent's `openai` as it should be.
+
+**A gateway makes the family check matter more, not less.** Routing both the
+agent and the judge through one endpoint makes it easy to run both on the same
+underlying model while the two ids look different. If the vendor segment is one
+this library does not know, `infer_family` returns `None` and the run refuses
+to start rather than assume; declare `judge_family=` explicitly when you are
+certain.
+
+Two gateway-specific things worth knowing:
+
+- **Silent routing.** OpenRouter can fall back to a different provider for the
+  same model id. The judge records the id you gave, not the one that served the
+  request, so a report cannot show that drift. Pin the provider in your
+  OpenRouter settings if the number has to be reproducible.
+- **`temperature=0` is advisory.** The judge asks for it, and not every
+  provider behind a gateway honours it. `judge calibrate` measures the
+  agreement you actually get, which is the number to trust over the setting.
+
 ### Three labels, four outcomes
 
 A judgment is `supported`, `contradicted` or `not_in_evidence`. A `Verdict`

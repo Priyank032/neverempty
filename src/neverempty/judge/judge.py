@@ -104,6 +104,16 @@ _FAMILY_PREFIXES: tuple[tuple[str, str], ...] = (
     ("mistral", "mistral"),
     ("mixtral", "mistral"),
     ("command", "cohere"),
+    # Families a gateway routinely serves. Each is listed so a judge running on
+    # one can be checked against an agent running on the same one; an id that
+    # matches nothing here still infers nothing, which refuses rather than
+    # guesses.
+    ("deepseek", "deepseek"),
+    ("qwen", "qwen"),
+    ("grok", "xai"),
+    ("xai", "xai"),
+    ("nova", "amazon"),
+    ("amazon", "amazon"),
     ("cohere.", "cohere"),
 )
 """Known model-id prefixes, longest concern first.
@@ -116,13 +126,43 @@ disables the only self-preference control in the system.
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
 
 
-def infer_family(model_id: str) -> str | None:
-    """The vendor family for a model id, or ``None`` when unrecognised."""
-    lowered = model_id.strip().lower()
+def _family_of(segment: str) -> str | None:
     for prefix, family in _FAMILY_PREFIXES:
-        if lowered.startswith(prefix) or f".{prefix}" in lowered:
+        if segment.startswith(prefix) or f".{prefix}" in segment:
             return family
     return None
+
+
+def infer_family(model_id: str) -> str | None:
+    """The vendor family for a model id, or ``None`` when unrecognised.
+
+    Handles the namespaced ids every gateway uses -- ``anthropic/claude-...``
+    on OpenRouter and Together, ``anthropic.claude-...`` on Bedrock -- by
+    reading the vendor segment first and the model segment second. Without
+    that, every OpenRouter id inferred nothing and the judge refused to start,
+    because a judge whose family is unknown cannot be checked against the
+    agent's.
+
+    Reading both halves matters more than convenience here. A gateway makes it
+    easy to run the agent and the judge on the same underlying model while the
+    two ids look different, and the family check is the only control against a
+    model grading its own output.
+
+    An id neither half recognises still infers nothing. Refusing beats
+    guessing: a wrong family silently disables that control.
+    """
+    lowered = model_id.strip().lower()
+
+    vendor, separator, model = lowered.partition("/")
+    if separator:
+        # ``meta-llama/llama-3.3-70b`` -- the vendor segment carries the family.
+        for candidate in (vendor, model):
+            family = _family_of(candidate)
+            if family is not None:
+                return family
+        return None
+
+    return _family_of(lowered)
 
 
 @dataclass(frozen=True)
