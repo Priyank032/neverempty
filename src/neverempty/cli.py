@@ -239,8 +239,22 @@ def _run(args: argparse.Namespace) -> int:
             return EXIT_INVALID
 
         run_config = config.run
+        # Without a [pricing] table every cost is null, so max_cost_usd cannot
+        # be measured against and the runner refuses to start. That refusal is
+        # right; the gap was that a config had no way to supply prices. The
+        # sink matches the Runner's own default, so this only adds the table.
+        from neverempty.tracer.sinks import MemorySink
+        from neverempty.tracer.tracer import Tracer
+
+        tracer = (
+            Tracer(sink=MemorySink(), pricing=config.pricing)
+            if config.pricing is not None
+            else None
+        )
+
         runner = Runner(
             target=target,
+            tracer=tracer,
             scorers=scorer_objects,
             repeats=args.repeats or run_config.repeats,
             concurrency=run_config.concurrency,

@@ -37,7 +37,10 @@ scorers = ["route", "failure_handling", "false_alarm", "forbidden_claims"]
 repeats = 3
 concurrency = 8
 case_timeout_s = 120
-max_cost_usd = 5.0
+# max_cost_usd: the live router discards response.usage, so no cost can be
+# computed and a budget here would be unenforceable. Restore it once the
+# router records usage.
+# max_cost_usd = 5.0
 seed = 20260921
 cache = "evals/.cache"
 mode = "live"
@@ -54,3 +57,23 @@ paired_alpha = 0.05
 max_unstable_rate = 0.10
 floors = { route_strict = 0.75, misreport_as_empty_max = 0.10 }
 warn = { p95_latency_increase = 0.25, cost_increase = 0.20 }
+
+# Required by run.max_cost_usd: with no table every cost is null, the budget
+# cannot be measured against, and the runner refuses to start rather than
+# pretend it is enforcing one. Keyed by the *resolved* model id.
+[pricing]
+version = "openai-2026-09-01"
+
+[pricing.models."gpt-4o"]
+input_usd_per_mtok = 2.50
+output_usd_per_mtok = 10.00
+cached_input_usd_per_mtok = 1.25
+as_of = "2026-09-01"
+source_url = "https://openai.com/api/pricing/"
+
+[pricing.models."gpt-4o-mini"]
+input_usd_per_mtok = 0.15
+output_usd_per_mtok = 0.60
+cached_input_usd_per_mtok = 0.075
+as_of = "2026-09-01"
+source_url = "https://openai.com/api/pricing/"

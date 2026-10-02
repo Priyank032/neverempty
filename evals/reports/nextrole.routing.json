@@ -1,0 +1,489 @@
+{
+  "complete": false,
+  "config_hash": "9e64e4facbbbf3b04a567f3612995539e806019e8063736a19f5077133790023",
+  "confusion": {
+    "job_search": {
+      "job_search": 3
+    }
+  },
+  "costs": {
+    "budget_usd": 5.0,
+    "mean_usd": null,
+    "pricing_version": "openai-2026-09-01",
+    "total_usd": null,
+    "unknown_count": 8
+  },
+  "counts": {
+    "cases": 3,
+    "crashed": 0,
+    "repeats": 3,
+    "scored": 3,
+    "unscored": 0,
+    "unstable": 0
+  },
+  "created_at": "2026-10-02T08:29:17.462Z",
+  "env": {
+    "concurrency": 8,
+    "fault_profile": null,
+    "mode": "live",
+    "neverempty_version": "0.1.0",
+    "pricing_version": "openai-2026-09-01",
+    "prompt_hashes": {},
+    "python_version": "3.12.10",
+    "rate_limit_retries": 0,
+    "resolved_models": [],
+    "runtime": null,
+    "seed": 20260921,
+    "target_dirty": false,
+    "target_git_sha": null
+  },
+  "judge": {
+    "error_rate": null,
+    "kappa": null,
+    "model": null,
+    "prompt_version": null
+  },
+  "latency": {
+    "concurrency": 8,
+    "p50_ms": 13125,
+    "p95_ms": 13125,
+    "samples_ms": [
+      13125,
+      13125,
+      13125,
+      13125,
+      13125,
+      13125,
+      13125,
+      13125
+    ]
+  },
+  "metrics": [
+    {
+      "applicable": 3,
+      "ci_high": 0.9499999999999998,
+      "ci_low": 0.9499999999999998,
+      "method": "bootstrap",
+      "n": 3,
+      "name": "calibration",
+      "note": "collapse=median",
+      "value": 0.9499999999999998
+    },
+    {
+      "applicable": 0,
+      "ci_high": null,
+      "ci_low": null,
+      "method": null,
+      "n": 0,
+      "name": "forbidden_claims",
+      "note": "not measured: no case in this run declared the expectation",
+      "value": null
+    },
+    {
+      "applicable": 3,
+      "ci_high": 1.0,
+      "ci_low": 0.4385029682449546,
+      "method": "wilson",
+      "n": 3,
+      "name": "route",
+      "note": "collapse=majority",
+      "value": 1.0
+    },
+    {
+      "applicable": 0,
+      "ci_high": null,
+      "ci_low": null,
+      "method": null,
+      "n": 0,
+      "name": "tool_selection",
+      "note": "not measured: no case in this run declared the expectation",
+      "value": null
+    }
+  ],
+  "outcomes": [
+    {
+      "case_id": "nr-route-0004",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "66a366cd-4ae9-44f1-8f16-9d352ed84139",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0004",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 1,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "5ebea72b-f300-440e-a3c5-f6ea73f0856f",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0004",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 2,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "fca1b1bd-6d72-4ec7-87fc-72f005d3fad2",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0005",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "54b2e6d1-804d-4f90-b2a5-c6bfbf4f2df5",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0005",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 1,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "c3051f1c-6ad4-486f-8267-42bed116065c",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0005",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 2,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "f419b33b-f965-4811-82b1-59d2dff560ec",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0006",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 0,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "982e1c91-27a4-4eec-96d7-80f15ec9187b",
+      "trace_status": "ok"
+    },
+    {
+      "case_id": "nr-route-0006",
+      "cost_unknown_reason": "no_model_recorded",
+      "cost_usd": null,
+      "duration_ms": 13125,
+      "error": null,
+      "must_pass": false,
+      "not_applicable": [
+        "tool_selection",
+        "forbidden_claims"
+      ],
+      "repeat": 1,
+      "scored": true,
+      "scorer_errors": {},
+      "scores": {
+        "calibration": {
+          "detail": {
+            "confidence": 0.95,
+            "correct": true,
+            "correctness": "route",
+            "expected": "job_search",
+            "lenient": false,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": null,
+          "value": 0.95
+        },
+        "route": {
+          "detail": {
+            "acceptable": [],
+            "expected": "job_search",
+            "lenient": true,
+            "predicted": "job_search",
+            "source": "final_output.route"
+          },
+          "passed": true,
+          "value": 1.0
+        }
+      },
+      "tags": [
+        "en",
+        "clear"
+      ],
+      "trace_id": "ee0383a8-0245-497b-8e53-51f48c19f239",
+      "trace_status": "ok"
+    }
+  ],
+  "report_id": "a35de7f1-f819-4646-8c16-59238b7e0d0c",
+  "resumed_from": null,
+  "schema_version": 1,
+  "split": "test",
+  "split_hash": "54d1b8e075479037b626a13d072c3bdfe51377b34ed15cabe5881a7cd100f8d9",
+  "status": "aborted_budget",
+  "suite": "nextrole.routing",
+  "suite_version": 1
+}

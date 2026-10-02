@@ -21,6 +21,7 @@ from typing import Any, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from neverempty.report.gate import GateConfig
+from neverempty.tracer.pricing import Pricing
 
 _SUITE_NAME = re.compile(r"^[a-z0-9]+(\.[a-z0-9_]+)+$")
 _ENTRYPOINT = re.compile(r"^[A-Za-z_][\w.]*:[A-Za-z_]\w*$")
@@ -169,6 +170,14 @@ class Config(_Strict):
     run: RunConfig = Field(default_factory=RunConfig)
     judge: JudgeConfig = Field(default_factory=JudgeConfig)
     gate: GateBlock = Field(default_factory=GateBlock)
+    pricing: Pricing | None = None
+    """Prices for the models this run will call, or ``None``.
+
+    Optional, but required in practice by ``run.max_cost_usd``: with no table
+    every cost is null, so the budget cannot be measured against and the runner
+    refuses to start rather than pretend it is enforcing one. ``ModelPrice``'s
+    own rules carry over, so an undated or uncited price is still refused here.
+    """
     source: Path | None = None
     """Where this config was loaded from, so relative paths can be resolved."""
 
