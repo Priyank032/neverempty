@@ -184,3 +184,13 @@ class TestTheDocumentedGatewayBindingWorks:
         )
         assert "Silent routing" in text
         assert "base_url" in text
+
+    def test_the_docs_say_the_binding_is_unverified(self) -> None:
+        """No request has been sent to a gateway from this repository. The
+        snippet proves construction and the family check, not the network."""
+        from pathlib import Path
+
+        text = (
+            Path(__file__).resolve().parents[2] / "docs" / "writing-labels.md"
+        ).read_text(encoding="utf-8")
+        assert "Unverified against a live gateway" in text

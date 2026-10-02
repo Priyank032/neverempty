@@ -357,6 +357,12 @@ model, so reruns are cheap and stable.
 Together, Groq, Fireworks and a local vLLM all speak the OpenAI chat API, so
 the same class serves all of them -- only `base_url` and the model id change.
 
+> **Unverified against a live gateway.** This snippet is written from the
+> OpenAI SDK's documented shape and is exercised by tests with the network
+> replaced, so the construction and the family check are proven. No request has
+> been sent to OpenRouter or any other gateway from this repository. Treat the
+> first real call as the test.
+
 ```python
 from openai import AsyncOpenAI
 
