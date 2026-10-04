@@ -12,8 +12,10 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  # Its own tags, not ruff's: a fix that bumped the ruff rev changed this one
+  # too, and v0.16.10 does not exist here, so every commit failed to clone it.
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v0.16.10
+    rev: v5.0.0
     hooks:
       - id: check-yaml
       - id: check-toml
