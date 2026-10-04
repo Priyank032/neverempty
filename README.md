@@ -1,5 +1,10 @@
 # neverempty
 
+[![PyPI](https://img.shields.io/pypi/v/neverempty)](https://pypi.org/project/neverempty/)
+[![Python](https://img.shields.io/pypi/pyversions/neverempty)](https://pypi.org/project/neverempty/)
+[![CI](https://github.com/Priyank032/neverempty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Priyank032/neverempty/actions/workflows/ci.yml)
+[![License](https://img.shields.io/pypi/l/neverempty)](LICENSE)
+
 A Python eval harness that measures how often your tool-calling agent tells a
 user "no results" when a tool actually failed.
 
@@ -84,11 +89,8 @@ A tool wrapped in `@tool` cannot produce that shape. Three things change:
 
 ## Quickstart
 
-Install from a clone (PyPI release pending):
-
 ```bash
-git clone https://github.com/Priyank032/neverempty
-cd neverempty && pip install -e .
+pip install neverempty
 ```
 
 ### 1. A tool that cannot lie about being empty
