@@ -7,7 +7,7 @@ For engineers shipping agents who want that rate as a CI-gated number rather
 than an assumption. It injects tool faults on purpose, scores the answers, and
 fails the build when the misreport rate rises.
 
-> **Status: 0.1.0, not released.** Every milestone in the design doc is
+> **Status: 0.1.0, on PyPI.** Every milestone in the design doc is
 > implemented, the suite is green on Python 3.10-3.13, and the Numbers section
 > below carries a first real measurement: 91.2% routing accuracy over 330
 > hand-verified cases against a live gpt-4o router.
@@ -20,18 +20,27 @@ fails the build when the misreport rate rises.
 
 ## Installation
 
-Not on PyPI yet, so `pip install neverempty` does not work. Install from a
-clone:
-
 ```bash
-git clone https://github.com/Priyank032/neverempty
-cd neverempty
-pip install -e .
+pip install neverempty
 ```
 
 Core depends on `pydantic>=2` and nothing else (plus `tomli` on Python 3.10,
 where `tomllib` is not stdlib). Python 3.10 to 3.13. Integrations ship as
 extras: `neverempty[langgraph]`, `neverempty[openai]`, `neverempty[bedrock]`.
+
+## What it costs
+
+Nothing to install or try. `neverempty init && neverempty run` works with no
+API key: it runs against the stub agent `init` writes, so you can see the shape
+of the output before wiring anything up.
+
+Running it against your own agent uses your own key, because it is your agent
+making the calls. The harness itself makes none -- core imports no model SDK.
+A 330-case suite at `repeats = 3` is 990 calls, about **$2.22** on gpt-4o. Cap
+it with `max_cost_usd` in `[run]`.
+
+The judge is optional. Without one configured, judge-mode checks are reported
+as unmeasured and excluded from the denominator -- never counted as passes.
 
 ## Start here
 

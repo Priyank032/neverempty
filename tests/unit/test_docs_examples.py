@@ -138,11 +138,21 @@ class TestTheDocsDescribeTheRealApi:
         readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
         assert "returns the **JSON string**" in readme
 
-    def test_the_readme_does_not_promise_a_working_pip_install(self) -> None:
-        """Until it is published, the documented install command must not be
-        one that fails."""
+    def test_the_readme_documents_the_published_install(self) -> None:
+        """0.1.0 is on PyPI, verified by installing it from the index into a
+        clean venv and running ``init`` then ``run``. Before that, this test
+        asserted the opposite -- that the README said so rather than promising
+        a command that failed. The claim changed because the fact did."""
         readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
-        assert "Not on PyPI yet" in readme
+        assert "pip install neverempty" in readme
+        assert "Not on PyPI yet" not in readme
+
+    def test_the_readme_says_who_pays_for_model_calls(self) -> None:
+        """The first question a reader asks. The harness makes no model calls
+        of its own, so the answer has to be stated rather than inferred."""
+        readme = (DOCS.parent / "README.md").read_text(encoding="utf-8")
+        assert "What it costs" in readme
+        assert "your own key" in readme
 
 
 def _match_table() -> str:
