@@ -519,6 +519,9 @@ neverempty readme evals/reports/*.json --check README.md   # CI
 | [Reading a report](docs/reading-a-report.md) | What each number is allowed to claim. |
 | [Architecture](docs/architecture.md) | Why a piece is not simpler. Each answer is a failure mode. |
 
+Longer write-up of the bug itself:
+[Your agent cannot tell "nothing found" from "the lookup failed"](https://dev.to/priyank_agrawal/your-agent-cannot-tell-nothing-found-from-the-lookup-failed-2e91).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security policy in
