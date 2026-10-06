@@ -12,6 +12,28 @@ versioned independently of the package.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-06
+
+Documentation-only release. The code is identical to 0.1.0.
+
+### Documentation
+
+- **The PyPI page no longer says the package is not on PyPI.** 0.1.0's long
+  description was built from a README that still read "Not on PyPI yet, so
+  `pip install neverempty` does not work", and PyPI never updates a published
+  version's description. Anyone landing on the project page was told the
+  install command in front of them would fail.
+- PyPI, Python, CI and license badges, and a link to the longer write-up of
+  the bug.
+- The fixes under 0.1.0 below were headed "Unreleased" here, but they shipped
+  in the 0.1.0 wheel uploaded on 2026-10-04 (its source is byte-identical to
+  this release's). They are now filed under the version that carries them.
+
+## [0.1.0] - 2026-10-04
+
+First PyPI upload. The version was cut on 2026-09-29; the two review rounds
+below landed between that and the upload, and are part of it.
+
 ### Fixed
 
 An independent black-box review installed the wheel cold, with no source
@@ -166,7 +188,7 @@ the right reason first.
   including a check that the documented `match` modes are exactly the
   implemented ones, in both directions.
 
-## [0.1.0] - 2026-09-29
+### As cut on 2026-09-29
 
 The library is complete against the design doc. What it does **not** yet carry
 is measured results for the two dogfood agents: those need hand-written ground
