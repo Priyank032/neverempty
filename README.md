@@ -12,7 +12,7 @@ For engineers shipping agents who want that rate as a CI-gated number rather
 than an assumption. It injects tool faults on purpose, scores the answers, and
 fails the build when the misreport rate rises.
 
-> **Status: 0.1.0, on PyPI.** Every milestone in the design doc is
+> **Status: 0.1.1, on PyPI.** Every milestone in the design doc is
 > implemented, the suite is green on Python 3.10-3.13, and the Numbers section
 > below carries a first real measurement: 91.2% routing accuracy over 330
 > hand-verified cases against a live gpt-4o router.
